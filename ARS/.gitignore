@@ -72,3 +72,4 @@ $RECYCLE.BIN/
 # Configuration files with sensitive data
 application-local.properties
 application-dev.properties
+Flow

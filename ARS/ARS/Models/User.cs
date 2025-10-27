@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using ARS.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ARS.Models;
 
@@ -9,24 +9,39 @@ public class User
     public int UserId { get; set; }
 
     [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
-
-    [Required]
-    public string PasswordHash { get; set; } = string.Empty;
-
-    [Required]
     public string FirstName { get; set; } = string.Empty;
 
     [Required]
     public string LastName { get; set; } = string.Empty;
 
-    public string? PhoneNumber { get; set; }
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [Required]
+    public string Password { get; set; } = string.Empty;
 
-    public DateTime? UpdatedAt { get; set; }
+    [Required]
+    public string Phone { get; set; } = string.Empty;
+
+    [Required]
+    public string Address { get; set; } = string.Empty;
+
+    [Required]
+    [Column(TypeName = "char(1)")]
+    public char Gender { get; set; }
+
+    [Required]
+    public int Age { get; set; }
+
+    [Required]
+    public string CreditCardNumber { get; set; } = string.Empty;
+
+    public int SkyMiles { get; set; } = 0;
+
+    [Required]
+    public string Role { get; set; } = "User";
 
     // Navigation properties
-    public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
+    // public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 }
