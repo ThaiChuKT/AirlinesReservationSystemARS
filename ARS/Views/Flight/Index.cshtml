@@ -1,0 +1,77 @@
+@model ARS.ViewModels.FlightSearchViewModel
+@{
+    ViewData["Title"] = "Search Flights";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0"><i class="bi bi-airplane"></i> Search Flights</h2>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Search" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="OriginCityID" class="form-label fw-bold"></label>
+                                <select asp-for="OriginCityID" class="form-select" asp-items="ViewBag.Cities">
+                                    <option value="">Select Origin City</option>
+                                </select>
+                                <span asp-validation-for="OriginCityID" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="DestinationCityID" class="form-label fw-bold"></label>
+                                <select asp-for="DestinationCityID" class="form-select" asp-items="ViewBag.Cities">
+                                    <option value="">Select Destination City</option>
+                                </select>
+                                <span asp-validation-for="DestinationCityID" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label asp-for="TravelDate" class="form-label fw-bold"></label>
+                                <input asp-for="TravelDate" class="form-control" type="date" />
+                                <span asp-validation-for="TravelDate" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label asp-for="Passengers" class="form-label fw-bold"></label>
+                                <input asp-for="Passengers" class="form-control" type="number" min="1" max="10" />
+                                <span asp-validation-for="Passengers" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label asp-for="Class" class="form-label fw-bold"></label>
+                                <select asp-for="Class" class="form-select">
+                                    <option value="Economy">Economy</option>
+                                    <option value="Business">Business</option>
+                                    <option value="First">First Class</option>
+                                </select>
+                                <span asp-validation-for="Class" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-search"></i> Search Flights
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mt-4 text-center text-muted">
+                <p><i class="bi bi-info-circle"></i> Book early to get the best prices! Prices increase as departure date approaches.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

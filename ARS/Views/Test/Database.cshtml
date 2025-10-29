@@ -1,0 +1,142 @@
+@using ARS.Models
+@{
+    ViewData["Title"] = "Database Test";
+}
+
+<div class="container mt-4">
+    <h1 class="display-4">Database Connection Test</h1>
+    <p class="lead">Testing connection to: <strong>@ViewBag.DatabaseName</strong></p>
+
+    <hr />
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3>Cities (@ViewBag.Cities.Count)</h3>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.Cities.Count > 0)
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>City Name</th>
+                                    <th>Country</th>
+                                    <th>Airport Code</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (City city in ViewBag.Cities)
+                                {
+                                    <tr>
+                                        <td>@city.CityID</td>
+                                        <td>@city.CityName</td>
+                                        <td>@city.Country</td>
+                                        <td>@city.AirportCode</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No cities found.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h3>Pricing Policies (@ViewBag.PricingPolicies.Count)</h3>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.PricingPolicies.Count > 0)
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Description</th>
+                                    <th>Days Before</th>
+                                    <th>Multiplier</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (PricingPolicy policy in ViewBag.PricingPolicies)
+                                {
+                                    <tr>
+                                        <td>@policy.PolicyID</td>
+                                        <td>@policy.Description</td>
+                                        <td>@policy.DaysBeforeDeparture</td>
+                                        <td>@policy.PriceMultiplier.ToString("F2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No pricing policies found.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h3>Users (@ViewBag.Users.Count)</h3>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.Users.Count > 0)
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>SkyMiles</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (User user in ViewBag.Users)
+                                {
+                                    <tr>
+                                        <td>@user.UserID</td>
+                                        <td>@user.FirstName @user.LastName</td>
+                                        <td>@user.Email</td>
+                                        <td><span class="badge bg-primary">@user.Role</span></td>
+                                        <td>@user.SkyMiles</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No users found.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-success mt-4" role="alert">
+        <h4 class="alert-heading">✅ Database Connection Successful!</h4>
+        <p>All tables have been created successfully and seed data has been inserted.</p>
+        <hr>
+        <p class="mb-0">You can now proceed with implementing the rest of the application features.</p>
+    </div>
+
+    <div class="mt-4">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Back to Home</a>
+    </div>
+</div>
