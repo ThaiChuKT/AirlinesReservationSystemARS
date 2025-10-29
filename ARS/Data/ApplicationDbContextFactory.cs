@@ -12,7 +12,7 @@ namespace ARS.Data
             // Use a design-time connection string
             // You can update this with your actual MySQL credentials
             optionsBuilder.UseMySql(
-                "Server=localhost;Database=ARSDatabase;User=Shiro;Password=white;",
+                "Server=localhost;Database=ARSDatabase;User=root;Password=;",
                 new MySqlServerVersion(new Version(8, 0, 21))
             );
 

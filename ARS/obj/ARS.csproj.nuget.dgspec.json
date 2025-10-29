@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {}
+    "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {
+    "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
+        "projectUniqueName": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
         "projectName": "ARS",
-        "projectPath": "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
-        "packagesPath": "C:\\Users\\Kruwul\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\obj\\",
+        "projectPath": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
+        "packagesPath": "C:\\Users\\Kruwu\\.nuget\\packages\\",
+        "outputPath": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Kruwul\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Kruwu\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -80,7 +80,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
