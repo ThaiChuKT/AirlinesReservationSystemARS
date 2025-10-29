@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "D:\\THAICHU\\ARS\\AirlineReservationSystemARS\\ARS\\ARS\\ARS.csproj": {}
+    "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS\\ARS.csproj": {}
   },
   "projects": {
-    "D:\\THAICHU\\ARS\\AirlineReservationSystemARS\\ARS\\ARS\\ARS.csproj": {
+    "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS\\ARS.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\THAICHU\\ARS\\AirlineReservationSystemARS\\ARS\\ARS\\ARS.csproj",
+        "projectUniqueName": "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS\\ARS.csproj",
         "projectName": "ARS",
-        "projectPath": "D:\\THAICHU\\ARS\\AirlineReservationSystemARS\\ARS\\ARS\\ARS.csproj",
-        "packagesPath": "C:\\Users\\Thai Chu\\.nuget\\packages\\",
-        "outputPath": "D:\\THAICHU\\ARS\\AirlineReservationSystemARS\\ARS\\ARS\\obj\\",
+        "projectPath": "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS\\ARS.csproj",
+        "packagesPath": "C:\\Users\\Kruwul\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Thai Chu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Kruwul\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -43,6 +43,24 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.10, )"
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.10, )"
+            },
+            "Pomelo.EntityFrameworkCore.MySql": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
