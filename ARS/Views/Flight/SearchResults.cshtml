@@ -1,92 +1,227 @@
-@model ARS.ViewModels.FlightSearchResultViewModel
+@model ARS.Models.DTO.FlightSeachDTO
+
 @{
-    ViewData["Title"] = "Flight Search Results";
+    ViewData["Title"] = "Tìm kiếm chuyến bay";
 }
 
-<div class="container mt-4">
-    <div class="card shadow-sm mb-4">
-        <div class="card-body bg-light">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h5 class="mb-1">
-                        <strong>@Model.SearchCriteria.Passengers</strong> passenger(s) | 
-                        <strong>@Model.SearchCriteria.Class</strong> | 
-                        @Model.SearchCriteria.TravelDate.ToString("MMMM dd, yyyy")
-                    </h5>
-                </div>
-                <div class="col-md-4 text-end">
-                    <a asp-action="Index" class="btn btn-outline-primary">
-                        <i class="bi bi-arrow-left"></i> New Search
-                    </a>
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Tìm kiếm chuyến bay</h2>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form id="searchFlightForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="originCity" class="form-label">Điểm khởi hành</label>
+                                <select class="form-select" id="originCity" name="OriginCityId" required>
+                                    <option value="">-- Chọn thành phố --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="destinationCity" class="form-label">Điểm đến</label>
+                                <select class="form-select" id="destinationCity" name="DestinationCityId" required>
+                                    <option value="">-- Chọn thành phố --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="departureDate" class="form-label">Ngày khởi hành</label>
+                                <input type="date" class="form-control" id="departureDate" name="DepartureDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="returnDate" class="form-label">Ngày về (tùy chọn)</label>
+                                <input type="date" class="form-control" id="returnDate" name="ReturnDate">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="numAdults" class="form-label">Người lớn</label>
+                                <input type="number" class="form-control" id="numAdults" name="NumAdults" min="1" max="9" value="1" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="numChildren" class="form-label">Trẻ em</label>
+                                <input type="number" class="form-control" id="numChildren" name="NumChildren" min="0" max="9" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="numSeniors" class="form-label">Người cao tuổi</label>
+                                <input type="number" class="form-control" id="numSeniors" name="NumSeniors" min="0" max="9" value="0">
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <label for="flightClass" class="form-label">Hạng vé</label>
+                                <select class="form-select" id="flightClass" name="Class">
+                                    <option value="Economy" selected>Economy</option>
+                                    <option value="Premium Economy">Premium Economy</option>
+                                    <option value="Business">Business</option>
+                                    <option value="First">First Class</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-search"></i> Tìm kiếm
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    @if (Model.Flights.Any())
-    {
-        <h4 class="mb-3">Found @Model.Flights.Count flight(s)</h4>
-        
-        @foreach (var flight in Model.Flights)
-        {
-            <div class="card mb-3 shadow-sm">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-3">
-                            <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
-                            <small class="text-muted">@flight.AircraftType</small>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="text-center">
-                                    <h4 class="mb-0">@flight.DepartureTime.ToString("HH:mm")</h4>
-                                    <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
-                                    <small class="text-muted">@flight.OriginCity</small>
-                                </div>
-                                
-                                <div class="text-center flex-grow-1 px-3">
-                                    <i class="bi bi-arrow-right text-muted"></i>
-                                    <p class="mb-0 text-muted">@flight.Duration min</p>
-                                </div>
-                                
-                                <div class="text-center">
-                                    <h4 class="mb-0">@flight.ArrivalTime.ToString("HH:mm")</h4>
-                                    <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
-                                    <small class="text-muted">@flight.DestinationCity</small>
+    <!-- Kết quả tìm kiếm -->
+    <div id="searchResults" class="mt-5" style="display: none;">
+        <h3 class="mb-4">Kết quả tìm kiếm</h3>
+        <div id="flightsList"></div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        // Set min date to today
+        const today = new Date().toISOString().split('T')[0];
+        $('#departureDate').attr('min', today);
+        $('#returnDate').attr('min', today);
+
+        // Load cities
+        loadCities();
+
+        // Handle form submission
+        $('#searchFlightForm').on('submit', function(e) {
+            e.preventDefault();
+            searchFlights();
+        });
+
+        // Update return date min value when departure date changes
+        $('#departureDate').on('change', function() {
+            const departureDate = $(this).val();
+            $('#returnDate').attr('min', departureDate);
+        });
+    });
+
+    function loadCities() {
+        $.ajax({
+            url: '/api/Flight/cities',
+            type: 'GET',
+            success: function(cities) {
+                const originSelect = $('#originCity');
+                const destinationSelect = $('#destinationCity');
+                
+                cities.forEach(function(city) {
+                    const option = `<option value="${city.cityID}">${city.cityName} (${city.airportCode}) - ${city.country}</option>`;
+                    originSelect.append(option);
+                    destinationSelect.append(option);
+                });
+            },
+            error: function(xhr) {
+                alert('Lỗi khi tải danh sách thành phố: ' + xhr.responseJSON?.message);
+            }
+        });
+    }
+
+    function searchFlights() {
+        const formData = {
+            OriginCityId: parseInt($('#originCity').val()),
+            DestinationCityId: parseInt($('#destinationCity').val()),
+            DepartureDate: $('#departureDate').val(),
+            ReturnDate: $('#returnDate').val() || null,
+            NumAdults: parseInt($('#numAdults').val()),
+            NumChildren: parseInt($('#numChildren').val()),
+            NumSeniors: parseInt($('#numSeniors').val()),
+            Class: $('#flightClass').val()
+        };
+
+        $.ajax({
+            url: '/api/Flight/search',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                displaySearchResults(response);
+            },
+            error: function(xhr) {
+                alert('Lỗi khi tìm kiếm: ' + (xhr.responseJSON?.message || 'Có lỗi xảy ra'));
+            }
+        });
+    }
+
+    function displaySearchResults(response) {
+        const resultsDiv = $('#searchResults');
+        const flightsListDiv = $('#flightsList');
+
+        if (!response.success || response.flights.length === 0) {
+            flightsListDiv.html(`
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> ${response.message}
+                </div>
+            `);
+            resultsDiv.show();
+            return;
+        }
+
+        let html = `<div class="alert alert-success mb-4">
+                        <i class="bi bi-check-circle"></i> ${response.message}
+                    </div>`;
+
+        response.flights.forEach(function(flight) {
+            const departureTime = new Date(flight.departureTime).toLocaleString('vi-VN');
+            const arrivalTime = new Date(flight.arrivalTime).toLocaleString('vi-VN');
+            const durationHours = Math.floor(flight.duration / 60);
+            const durationMinutes = flight.duration % 60;
+
+            html += `
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h5 class="text-primary">${flight.flightNumber}</h5>
+                                <small class="text-muted">${flight.aircraftType}</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-5">
+                                        <h6>${flight.originCityName} (${flight.originAirportCode})</h6>
+                                        <p class="mb-0">${departureTime}</p>
+                                    </div>
+                                    <div class="col-2 text-center">
+                                        <i class="bi bi-arrow-right"></i>
+                                        <p class="mb-0 small">${durationHours}h ${durationMinutes}m</p>
+                                    </div>
+                                    <div class="col-5">
+                                        <h6>${flight.destinationCityName} (${flight.destinationAirportCode})</h6>
+                                        <p class="mb-0">${arrivalTime}</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="col-md-3 text-end">
-                            <h3 class="text-success mb-1">₱@flight.FinalPrice.ToString("N2")</h3>
-                            <p class="mb-2 text-muted small">
-                                <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
-                            </p>
-                            <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
-                            <a asp-controller="Reservation" 
-                               asp-action="Create" 
-                               asp-route-flightId="@flight.FlightID"
-                               asp-route-scheduleId="@flight.ScheduleID"
-                               asp-route-travelDate="@Model.SearchCriteria.TravelDate"
-                               asp-route-numAdults="@Model.SearchCriteria.Passengers"
-                               asp-route-class="@Model.SearchCriteria.Class"
-                               class="btn btn-primary w-100">
-                                Book Now
-                            </a>
+                            <div class="col-md-3 text-end">
+                                <h4 class="text-success mb-2">${flight.totalPrice.toLocaleString('vi-VN')} VNĐ</h4>
+                                <p class="mb-2 small">Còn ${flight.availableSeats} ghế</p>
+                                <button class="btn btn-primary" onclick="selectFlight(${flight.flightId})">
+                                    Chọn chuyến bay
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        }
+            `;
+        });
+
+        flightsListDiv.html(html);
+        resultsDiv.show();
     }
-    else
-    {
-        <div class="alert alert-warning text-center" role="alert">
-            <i class="bi bi-exclamation-triangle fs-1"></i>
-            <h4 class="mt-3">No flights found</h4>
-            <p>Sorry, we couldn't find any flights matching your search criteria. Please try different dates or destinations.</p>
-            <a asp-action="Index" class="btn btn-primary mt-2">Search Again</a>
-        </div>
+
+    function selectFlight(flightId) {
+        // TODO: Implement booking logic
+        alert('Chuyển đến trang đặt vé cho chuyến bay ID: ' + flightId);
+        // window.location.href = '/Reservation/Create?flightId=' + flightId;
     }
-</div>
+</script>
+}
