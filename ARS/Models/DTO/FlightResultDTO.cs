@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ARS.Models.DTO;
 
-public class FligthResultDTO{
+public class FlightResultDTO{
      public int FlightId { get; set; }
     public string FlightNumber { get; set; } = string.Empty;
     public int OriginCityId { get; set; }
