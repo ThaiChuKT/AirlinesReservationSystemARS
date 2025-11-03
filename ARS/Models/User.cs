@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 
 namespace ARS.Models
 {
-    public class User
+    public class User : IdentityUser<int>
     {
-        [Key]
-        public int UserID { get; set; }
+        // Backwards-compatible accessor for code that expects UserID
+        [NotMapped]
+        public int UserID { get => Id; set => Id = value; }
 
         [Required]
         [StringLength(100)]
@@ -15,14 +18,8 @@ namespace ARS.Models
         [StringLength(100)]
         public string LastName { get; set; } = string.Empty;
 
-        [Required]
-        [EmailAddress]
-        [StringLength(200)]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(255)]
-        public string Password { get; set; } = string.Empty;
+    // Email and Password are provided by IdentityUser<int>
+    // Identity stores Email and PasswordHash; avoid duplicating properties here.
 
         [Phone]
         [StringLength(20)]
@@ -42,9 +39,9 @@ namespace ARS.Models
 
         public int SkyMiles { get; set; } = 0;
 
-        [Required]
-        [StringLength(50)]
-        public string Role { get; set; } = "Customer"; // Customer, Admin
+    // Role is managed via IdentityRole<int>. Keep a convenience property for legacy code.
+    [NotMapped]
+    public string Role { get; set; } = "Customer"; // Customer, Admin
 
         // Navigation properties
         public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();

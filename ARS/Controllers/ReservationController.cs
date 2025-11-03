@@ -3,24 +3,28 @@ using Microsoft.EntityFrameworkCore;
 using ARS.Data;
 using ARS.Models;
 using ARS.ViewModels;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 namespace ARS.Controllers
 {
     public class ReservationController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<User> _userManager;
 
-        public ReservationController(ApplicationDbContext context)
+        public ReservationController(ApplicationDbContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: Reservation/Create
         public async Task<IActionResult> Create(int flightId, int? scheduleId, DateOnly travelDate, int numAdults = 1, string classType = "Economy")
         {
-            // Check if user is logged in
-            var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
+            // Check if user is logged in via Identity
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
             {
                 TempData["ErrorMessage"] = "Please login to book a flight.";
                 return RedirectToAction("Login", "Account", new { returnUrl = $"/Reservation/Create?flightId={flightId}&scheduleId={scheduleId}&travelDate={travelDate}&numAdults={numAdults}&classType={classType}" });
@@ -36,13 +40,8 @@ namespace ARS.Controllers
                 return NotFound();
             }
 
-            // Get logged-in user information
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                HttpContext.Session.Clear();
-                return RedirectToAction("Login", "Account");
-            }
+            // Use currentUser from Identity
+            var user = currentUser;
 
             // Calculate pricing
             var daysBeforeDeparture = (travelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
@@ -92,9 +91,9 @@ namespace ARS.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(BookingViewModel model)
         {
-            // Check if user is logged in
-            var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
+            // Check if user is logged in via Identity
+            var currentUserPost = await _userManager.GetUserAsync(User);
+            if (currentUserPost == null)
             {
                 TempData["ErrorMessage"] = "Please login to book a flight.";
                 return RedirectToAction("Login", "Account");
@@ -105,13 +104,8 @@ namespace ARS.Controllers
                 return View(model);
             }
 
-            // Get the logged-in user
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                HttpContext.Session.Clear();
-                return RedirectToAction("Login", "Account");
-            }
+            // Use the Identity user
+            var user = currentUserPost;
 
             // Create or get schedule
             var schedule = await _context.Schedules
@@ -132,7 +126,7 @@ namespace ARS.Controllers
             // Create reservation
             var reservation = new Reservation
             {
-                UserID = user.UserID,
+                UserID = user.Id,
                 FlightID = model.FlightID,
                 ScheduleID = schedule.ScheduleID,
                 BookingDate = DateOnly.FromDateTime(DateTime.Now),
@@ -180,9 +174,9 @@ namespace ARS.Controllers
         // GET: Reservation/MyReservations
         public async Task<IActionResult> MyReservations()
         {
-            // Check if user is logged in
-            var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
+            // Check if user is logged in via Identity
+            var currentUserList = await _userManager.GetUserAsync(User);
+            if (currentUserList == null)
             {
                 TempData["ErrorMessage"] = "Please login to view your reservations.";
                 return RedirectToAction("Login", "Account", new { returnUrl = "/Reservation/MyReservations" });
@@ -195,7 +189,7 @@ namespace ARS.Controllers
                 .Include(r => r.Flight)
                     .ThenInclude(f => f.DestinationCity)
                 .Include(r => r.Schedule)
-                .Where(r => r.UserID == userId)
+                .Where(r => r.UserID == currentUserList.Id)
                 .OrderByDescending(r => r.BookingDate)
                 .ToListAsync();
 
@@ -210,9 +204,9 @@ namespace ARS.Controllers
                 return NotFound();
             }
 
-            // Check if user is logged in
-            var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
+            // Check if user is logged in via Identity
+            var currentUserDetails = await _userManager.GetUserAsync(User);
+            if (currentUserDetails == null)
             {
                 TempData["ErrorMessage"] = "Please login to view reservation details.";
                 return RedirectToAction("Login", "Account");
@@ -235,7 +229,7 @@ namespace ARS.Controllers
             }
 
             // Verify the reservation belongs to the logged-in user
-            if (reservation.UserID != userId)
+            if (reservation.UserID != currentUserDetails.Id)
             {
                 return Forbid();
             }

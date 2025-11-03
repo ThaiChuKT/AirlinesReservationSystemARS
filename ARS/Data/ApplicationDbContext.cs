@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using ARS.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace ARS.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<int>, int>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -12,7 +14,7 @@ namespace ARS.Data
 
         // DbSet properties for each entity
         public DbSet<City> Cities { get; set; }
-        public DbSet<User> Users { get; set; }
+    // IdentityDbContext already provides Users DbSet via IdentityDbContext<User,...>
         public DbSet<PricingPolicy> PricingPolicies { get; set; }
         public DbSet<Flight> Flights { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
@@ -133,20 +135,8 @@ namespace ARS.Data
                 new PricingPolicy { PolicyID = 4, Description = "Last Minute (0-6 days)", DaysBeforeDeparture = 0, PriceMultiplier = 1.50m }
             );
 
-            // Seed an admin user (password should be hashed in production)
-            modelBuilder.Entity<User>().HasData(
-                new User
-                {
-                    UserID = 1,
-                    FirstName = "Admin",
-                    LastName = "User",
-                    Email = "admin@ars.com",
-                    Password = "Admin@123", // TODO: Hash this password
-                    Gender = 'M',
-                    Role = "Admin",
-                    SkyMiles = 0
-                }
-            );
+            // NOTE: Admin user creation should be done via a secure seed/migration step using UserManager
+            // Avoid seeding plaintext passwords here.
         }
     }
 }

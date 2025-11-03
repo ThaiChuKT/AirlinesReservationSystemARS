@@ -1,26 +1,27 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using ARS.Data;
 using ARS.Models;
 using ARS.ViewModels;
-using System.Security.Cryptography;
-using System.Text;
+using System.Security.Claims;
 
 namespace ARS.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
 
-        public AccountController(ApplicationDbContext context)
+        public AccountController(UserManager<User> userManager, SignInManager<User> signInManager)
         {
-            _context = context;
+            _userManager = userManager;
+            _signInManager = signInManager;
         }
 
         // GET: Account/Register
         public IActionResult Register()
         {
-            if (IsUserLoggedIn())
+            if (User.Identity?.IsAuthenticated == true)
             {
                 return RedirectToAction("Index", "Home");
             }
@@ -37,33 +38,40 @@ namespace ARS.Controllers
                 return View(model);
             }
 
-            // Check if email already exists
-            if (await _context.Users.AnyAsync(u => u.Email == model.Email))
+            var existing = await _userManager.FindByEmailAsync(model.Email);
+            if (existing != null)
             {
                 ModelState.AddModelError("Email", "An account with this email already exists");
                 return View(model);
             }
 
-            // Create new user
             var user = new User
             {
+                UserName = model.Email,
+                Email = model.Email,
                 FirstName = model.FirstName,
                 LastName = model.LastName,
-                Email = model.Email,
-                Password = HashPassword(model.Password),
                 Phone = model.Phone,
                 Gender = model.Gender,
                 Age = model.Age,
                 Address = model.Address,
-                Role = "Customer",
                 SkyMiles = 0
             };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            var result = await _userManager.CreateAsync(user, model.Password);
+            if (!result.Succeeded)
+            {
+                foreach (var err in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, err.Description);
+                }
+                return View(model);
+            }
 
-            // Log the user in
-            SetUserSession(user);
+            // Optionally assign role
+            await _userManager.AddToRoleAsync(user, "Customer");
+
+            await _signInManager.SignInAsync(user, isPersistent: false);
 
             TempData["SuccessMessage"] = "Registration successful! Welcome to ARS.";
             return RedirectToAction("Index", "Home");
@@ -72,7 +80,7 @@ namespace ARS.Controllers
         // GET: Account/Login
         public IActionResult Login(string? returnUrl = null)
         {
-            if (IsUserLoggedIn())
+            if (User.Identity?.IsAuthenticated == true)
             {
                 return RedirectToAction("Index", "Home");
             }
@@ -91,20 +99,22 @@ namespace ARS.Controllers
                 return View(model);
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
-
-            if (user == null || !VerifyPassword(model.Password, user.Password))
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
             {
                 ModelState.AddModelError(string.Empty, "Invalid email or password");
                 return View(model);
             }
 
-            // Log the user in
-            SetUserSession(user);
+            var signInResult = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, lockoutOnFailure: false);
+            if (!signInResult.Succeeded)
+            {
+                ModelState.AddModelError(string.Empty, "Invalid email or password");
+                return View(model);
+            }
 
             TempData["SuccessMessage"] = $"Welcome back, {user.FirstName}!";
 
-            // Redirect to return URL or home
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 return Redirect(returnUrl);
@@ -116,9 +126,9 @@ namespace ARS.Controllers
         // POST: Account/Logout
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            HttpContext.Session.Clear();
+            await _signInManager.SignOutAsync();
             TempData["SuccessMessage"] = "You have been logged out successfully.";
             return RedirectToAction("Index", "Home");
         }
@@ -126,21 +136,15 @@ namespace ARS.Controllers
         // GET: Account/Profile
         public async Task<IActionResult> Profile()
         {
-            var userId = GetCurrentUserId();
-            if (userId == null)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
                 return RedirectToAction("Login", new { returnUrl = "/Account/Profile" });
             }
 
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
             var model = new ProfileViewModel
             {
-                UserID = user.UserID,
+                UserID = user.Id,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email,
@@ -159,8 +163,8 @@ namespace ARS.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Profile(ProfileViewModel model)
         {
-            var userId = GetCurrentUserId();
-            if (userId == null)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
                 return RedirectToAction("Login");
             }
@@ -170,16 +174,11 @@ namespace ARS.Controllers
                 return View(model);
             }
 
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
             // Check if email is being changed and if it's already taken
             if (user.Email != model.Email)
             {
-                if (await _context.Users.AnyAsync(u => u.Email == model.Email && u.UserID != userId))
+                var existing = await _userManager.FindByEmailAsync(model.Email);
+                if (existing != null && existing.Id != user.Id)
                 {
                     ModelState.AddModelError("Email", "This email is already in use");
                     return View(model);
@@ -190,15 +189,21 @@ namespace ARS.Controllers
             user.FirstName = model.FirstName;
             user.LastName = model.LastName;
             user.Email = model.Email;
+            user.UserName = model.Email;
             user.Phone = model.Phone;
             user.Address = model.Address;
             user.Gender = model.Gender;
             user.Age = model.Age;
 
-            await _context.SaveChangesAsync();
-
-            // Update session
-            SetUserSession(user);
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                foreach (var e in updateResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, e.Description);
+                }
+                return View(model);
+            }
 
             TempData["SuccessMessage"] = "Profile updated successfully!";
             return RedirectToAction("Profile");
@@ -207,7 +212,7 @@ namespace ARS.Controllers
         // GET: Account/ChangePassword
         public IActionResult ChangePassword()
         {
-            if (!IsUserLoggedIn())
+            if (User.Identity?.IsAuthenticated != true)
             {
                 return RedirectToAction("Login");
             }
@@ -219,8 +224,8 @@ namespace ARS.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
-            var userId = GetCurrentUserId();
-            if (userId == null)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
                 return RedirectToAction("Login");
             }
@@ -230,57 +235,26 @@ namespace ARS.Controllers
                 return View(model);
             }
 
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
+            var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+            if (!result.Succeeded)
             {
-                return NotFound();
-            }
-
-            // Verify current password
-            if (!VerifyPassword(model.CurrentPassword, user.Password))
-            {
-                ModelState.AddModelError("CurrentPassword", "Current password is incorrect");
+                foreach (var e in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, e.Description);
+                }
                 return View(model);
             }
-
-            // Update password
-            user.Password = HashPassword(model.NewPassword);
-            await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Password changed successfully!";
             return RedirectToAction("Profile");
         }
 
-        // Helper methods
-        private void SetUserSession(User user)
+        // Helper: get current user id as int
+        private int? GetCurrentUserIdFromClaims()
         {
-            HttpContext.Session.SetInt32("UserId", user.UserID);
-            HttpContext.Session.SetString("UserEmail", user.Email);
-            HttpContext.Session.SetString("UserName", $"{user.FirstName} {user.LastName}");
-            HttpContext.Session.SetString("UserRole", user.Role);
-        }
-
-        private int? GetCurrentUserId()
-        {
-            return HttpContext.Session.GetInt32("UserId");
-        }
-
-        private bool IsUserLoggedIn()
-        {
-            return HttpContext.Session.GetInt32("UserId") != null;
-        }
-
-        private string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(hashedBytes);
-        }
-
-        private bool VerifyPassword(string password, string hashedPassword)
-        {
-            var hashedInput = HashPassword(password);
-            return hashedInput == hashedPassword;
+            var idStr = _userManager.GetUserId(User);
+            if (int.TryParse(idStr, out var id)) return id;
+            return null;
         }
     }
 }

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 29, 2025 at 03:34 PM
+-- Generation Time: Nov 03, 2025 at 01:21 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -20,6 +20,136 @@ SET time_zone = "+00:00";
 --
 -- Database: `arsdatabase`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetroleclaims`
+--
+
+CREATE TABLE `aspnetroleclaims` (
+  `Id` int(11) NOT NULL,
+  `RoleId` int(11) NOT NULL,
+  `ClaimType` longtext DEFAULT NULL,
+  `ClaimValue` longtext DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetroles`
+--
+
+CREATE TABLE `aspnetroles` (
+  `Id` int(11) NOT NULL,
+  `Name` varchar(256) DEFAULT NULL,
+  `NormalizedName` varchar(256) DEFAULT NULL,
+  `ConcurrencyStamp` longtext DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `aspnetroles`
+--
+
+INSERT INTO `aspnetroles` (`Id`, `Name`, `NormalizedName`, `ConcurrencyStamp`) VALUES
+(1, 'Admin', 'ADMIN', NULL),
+(2, 'Customer', 'CUSTOMER', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetuserclaims`
+--
+
+CREATE TABLE `aspnetuserclaims` (
+  `Id` int(11) NOT NULL,
+  `UserId` int(11) NOT NULL,
+  `ClaimType` longtext DEFAULT NULL,
+  `ClaimValue` longtext DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetuserlogins`
+--
+
+CREATE TABLE `aspnetuserlogins` (
+  `LoginProvider` varchar(255) NOT NULL,
+  `ProviderKey` varchar(255) NOT NULL,
+  `ProviderDisplayName` longtext DEFAULT NULL,
+  `UserId` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetuserroles`
+--
+
+CREATE TABLE `aspnetuserroles` (
+  `UserId` int(11) NOT NULL,
+  `RoleId` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `aspnetuserroles`
+--
+
+INSERT INTO `aspnetuserroles` (`UserId`, `RoleId`) VALUES
+(1, 2);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetusers`
+--
+
+CREATE TABLE `aspnetusers` (
+  `Id` int(11) NOT NULL,
+  `UserName` varchar(256) DEFAULT NULL,
+  `NormalizedUserName` varchar(256) DEFAULT NULL,
+  `Email` varchar(256) DEFAULT NULL,
+  `NormalizedEmail` varchar(256) DEFAULT NULL,
+  `EmailConfirmed` tinyint(1) NOT NULL DEFAULT 0,
+  `PasswordHash` longtext DEFAULT NULL,
+  `SecurityStamp` longtext DEFAULT NULL,
+  `ConcurrencyStamp` longtext DEFAULT NULL,
+  `PhoneNumber` longtext DEFAULT NULL,
+  `PhoneNumberConfirmed` tinyint(1) NOT NULL DEFAULT 0,
+  `TwoFactorEnabled` tinyint(1) NOT NULL DEFAULT 0,
+  `LockoutEnd` datetime(6) DEFAULT NULL,
+  `LockoutEnabled` tinyint(1) NOT NULL DEFAULT 0,
+  `AccessFailedCount` int(11) NOT NULL DEFAULT 0,
+  `FirstName` varchar(100) NOT NULL,
+  `LastName` varchar(100) NOT NULL,
+  `Phone` varchar(20) DEFAULT NULL,
+  `Address` varchar(500) DEFAULT NULL,
+  `Gender` char(1) NOT NULL,
+  `Age` int(11) DEFAULT NULL,
+  `CreditCardNumber` varchar(20) DEFAULT NULL,
+  `SkyMiles` int(11) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `aspnetusers`
+--
+
+INSERT INTO `aspnetusers` (`Id`, `UserName`, `NormalizedUserName`, `Email`, `NormalizedEmail`, `EmailConfirmed`, `PasswordHash`, `SecurityStamp`, `ConcurrencyStamp`, `PhoneNumber`, `PhoneNumberConfirmed`, `TwoFactorEnabled`, `LockoutEnd`, `LockoutEnabled`, `AccessFailedCount`, `FirstName`, `LastName`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`) VALUES
+(1, 'scwar69@gmail.com', 'SCWAR69@GMAIL.COM', 'scwar69@gmail.com', 'SCWAR69@GMAIL.COM', 0, 'AQAAAAIAAYagAAAAEE1geISp6sQIZeqj04hXorx4o68DcKx+KExXpfnx88mwi1UwX/0Ovkj62fKNEBeUEw==', 'RY5ALWUZNK6GGKTWKDWHQAJRN4EQPP65', 'd70a74e8-e930-4f51-ae9c-bfd865fe7316', NULL, 0, 0, NULL, 1, 0, 'Shiro', 'White', '0825113336', '123 Street', 'M', 13, NULL, 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aspnetusertokens`
+--
+
+CREATE TABLE `aspnetusertokens` (
+  `UserId` int(11) NOT NULL,
+  `LoginProvider` varchar(255) NOT NULL,
+  `Name` varchar(255) NOT NULL,
+  `Value` longtext DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -70,15 +200,9 @@ CREATE TABLE `flights` (
 --
 
 INSERT INTO `flights` (`FlightID`, `FlightNumber`, `OriginCityID`, `DestinationCityID`, `DepartureTime`, `ArrivalTime`, `Duration`, `AircraftType`, `TotalSeats`, `BaseFare`, `PolicyID`) VALUES
-(1, 'ARS101', 1, 2, '2025-10-29 08:00:00.000000', '2025-10-29 09:20:00.000000', 80, 'Airbus A320', 180, 2500.00, 2),
-(2, 'ARS102', 1, 2, '2025-10-29 14:00:00.000000', '2025-10-29 15:20:00.000000', 80, 'Boeing 737', 160, 2800.00, 2),
-(3, 'ARS201', 2, 1, '2025-10-29 10:00:00.000000', '2025-10-29 11:20:00.000000', 80, 'Airbus A320', 180, 2500.00, 2),
-(4, 'ARS301', 1, 3, '2025-10-29 22:00:00.000000', '2025-10-30 04:00:00.000000', 240, 'Boeing 777', 300, 15000.00, 1),
-(5, 'ARS401', 3, 1, '2025-10-29 18:00:00.000000', '2025-10-29 22:00:00.000000', 240, 'Boeing 777', 300, 14500.00, 1),
-(6, 'ARS501', 1, 4, '2025-10-29 06:00:00.000000', '2025-10-29 09:30:00.000000', 210, 'Airbus A330', 250, 8500.00, 2),
-(7, 'ARS601', 4, 1, '2025-10-29 11:00:00.000000', '2025-10-29 14:30:00.000000', 210, 'Airbus A330', 250, 8500.00, 2),
-(8, 'ARS701', 1, 5, '2025-10-29 12:00:00.000000', '2025-10-29 14:30:00.000000', 150, 'Airbus A321', 200, 6500.00, 2),
-(9, 'ARS801', 5, 1, '2025-10-29 16:00:00.000000', '2025-10-29 18:30:00.000000', 150, 'Airbus A321', 200, 6500.00, 2);
+(100, 'ARS100', 1, 2, '2025-11-15 08:00:00.000000', '2025-11-15 09:00:00.000000', 60, 'A320', 150, 50.00, 2),
+(101, 'ARS200', 1, 3, '2025-11-16 10:30:00.000000', '2025-11-16 18:00:00.000000', 450, 'B787', 300, 320.00, 3),
+(102, 'ARS300', 2, 4, '2025-11-17 14:00:00.000000', '2025-11-17 16:30:00.000000', 150, 'A321', 180, 120.00, 2);
 
 -- --------------------------------------------------------
 
@@ -155,6 +279,13 @@ CREATE TABLE `reservations` (
   `BlockingNumber` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `reservations`
+--
+
+INSERT INTO `reservations` (`ReservationID`, `UserID`, `FlightID`, `ScheduleID`, `BookingDate`, `TravelDate`, `Status`, `NumAdults`, `NumChildren`, `NumSeniors`, `Class`, `ConfirmationNumber`, `BlockingNumber`) VALUES
+(1, 1, 100, 1000, '2025-11-03', '2025-11-15', 'Pending', 1, 0, 0, 'Economy', 'ARS202511031907405640', 'BLK20251103190740');
+
 -- --------------------------------------------------------
 
 --
@@ -174,7 +305,9 @@ CREATE TABLE `schedules` (
 --
 
 INSERT INTO `schedules` (`ScheduleID`, `FlightID`, `Date`, `Status`, `CityID`) VALUES
-(1, 3, '2025-10-30', 'Scheduled', NULL);
+(1000, 100, '2025-11-15', 'Scheduled', 2),
+(1001, 101, '2025-11-16', 'Scheduled', 3),
+(1002, 102, '2025-11-17', 'Scheduled', 4);
 
 -- --------------------------------------------------------
 
@@ -202,8 +335,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`UserID`, `FirstName`, `LastName`, `Email`, `Password`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`, `Role`) VALUES
-(1, 'Admin', 'User', 'admin@ars.com', 'Admin@123', NULL, NULL, 'M', NULL, NULL, 0, 'Admin'),
-(3, 'Shiro', 'White', 'scwar69@gmail.com', 'jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=', '0825113336', '123 Street', 'M', 22, NULL, 0, 'Customer');
+(1, 'Admin', 'User', 'admin@ars.com', 'Admin@123', NULL, NULL, 'M', NULL, NULL, 0, 'Admin');
 
 -- --------------------------------------------------------
 
@@ -221,11 +353,62 @@ CREATE TABLE `__efmigrationshistory` (
 --
 
 INSERT INTO `__efmigrationshistory` (`MigrationId`, `ProductVersion`) VALUES
-('20251029121905_InitialCreate', '9.0.10');
+('20251029121905_InitialCreate', '9.0.10'),
+('20251103114859_InitialIdentity', '9.0.10'),
+('20251103120432_SeedFlights', '9.0.10');
 
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `aspnetroleclaims`
+--
+ALTER TABLE `aspnetroleclaims`
+  ADD PRIMARY KEY (`Id`),
+  ADD KEY `IX_AspNetRoleClaims_RoleId` (`RoleId`);
+
+--
+-- Indexes for table `aspnetroles`
+--
+ALTER TABLE `aspnetroles`
+  ADD PRIMARY KEY (`Id`),
+  ADD UNIQUE KEY `RoleNameIndex` (`NormalizedName`);
+
+--
+-- Indexes for table `aspnetuserclaims`
+--
+ALTER TABLE `aspnetuserclaims`
+  ADD PRIMARY KEY (`Id`),
+  ADD KEY `IX_AspNetUserClaims_UserId` (`UserId`);
+
+--
+-- Indexes for table `aspnetuserlogins`
+--
+ALTER TABLE `aspnetuserlogins`
+  ADD PRIMARY KEY (`LoginProvider`,`ProviderKey`),
+  ADD KEY `IX_AspNetUserLogins_UserId` (`UserId`);
+
+--
+-- Indexes for table `aspnetuserroles`
+--
+ALTER TABLE `aspnetuserroles`
+  ADD PRIMARY KEY (`UserId`,`RoleId`),
+  ADD KEY `IX_AspNetUserRoles_RoleId` (`RoleId`);
+
+--
+-- Indexes for table `aspnetusers`
+--
+ALTER TABLE `aspnetusers`
+  ADD PRIMARY KEY (`Id`),
+  ADD UNIQUE KEY `UserNameIndex` (`NormalizedUserName`),
+  ADD KEY `EmailIndex` (`NormalizedEmail`);
+
+--
+-- Indexes for table `aspnetusertokens`
+--
+ALTER TABLE `aspnetusertokens`
+  ADD PRIMARY KEY (`UserId`,`LoginProvider`,`Name`);
 
 --
 -- Indexes for table `cities`
@@ -300,6 +483,30 @@ ALTER TABLE `__efmigrationshistory`
 --
 
 --
+-- AUTO_INCREMENT for table `aspnetroleclaims`
+--
+ALTER TABLE `aspnetroleclaims`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `aspnetroles`
+--
+ALTER TABLE `aspnetroles`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `aspnetuserclaims`
+--
+ALTER TABLE `aspnetuserclaims`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `aspnetusers`
+--
+ALTER TABLE `aspnetusers`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT for table `cities`
 --
 ALTER TABLE `cities`
@@ -309,7 +516,7 @@ ALTER TABLE `cities`
 -- AUTO_INCREMENT for table `flights`
 --
 ALTER TABLE `flights`
-  MODIFY `FlightID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `FlightID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=103;
 
 --
 -- AUTO_INCREMENT for table `payments`
@@ -339,17 +546,48 @@ ALTER TABLE `reservations`
 -- AUTO_INCREMENT for table `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `ScheduleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `ScheduleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1003;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `aspnetroleclaims`
+--
+ALTER TABLE `aspnetroleclaims`
+  ADD CONSTRAINT `FK_AspNetRoleClaims_AspNetRoles_RoleId` FOREIGN KEY (`RoleId`) REFERENCES `aspnetroles` (`Id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `aspnetuserclaims`
+--
+ALTER TABLE `aspnetuserclaims`
+  ADD CONSTRAINT `FK_AspNetUserClaims_AspNetUsers_UserId` FOREIGN KEY (`UserId`) REFERENCES `aspnetusers` (`Id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `aspnetuserlogins`
+--
+ALTER TABLE `aspnetuserlogins`
+  ADD CONSTRAINT `FK_AspNetUserLogins_AspNetUsers_UserId` FOREIGN KEY (`UserId`) REFERENCES `aspnetusers` (`Id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `aspnetuserroles`
+--
+ALTER TABLE `aspnetuserroles`
+  ADD CONSTRAINT `FK_AspNetUserRoles_AspNetRoles_RoleId` FOREIGN KEY (`RoleId`) REFERENCES `aspnetroles` (`Id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `FK_AspNetUserRoles_AspNetUsers_UserId` FOREIGN KEY (`UserId`) REFERENCES `aspnetusers` (`Id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `aspnetusertokens`
+--
+ALTER TABLE `aspnetusertokens`
+  ADD CONSTRAINT `FK_AspNetUserTokens_AspNetUsers_UserId` FOREIGN KEY (`UserId`) REFERENCES `aspnetusers` (`Id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `flights`
@@ -375,6 +613,7 @@ ALTER TABLE `refunds`
 -- Constraints for table `reservations`
 --
 ALTER TABLE `reservations`
+  ADD CONSTRAINT `FK_Reservations_AspNetUsers_UserID` FOREIGN KEY (`UserID`) REFERENCES `aspnetusers` (`Id`) ON DELETE CASCADE,
   ADD CONSTRAINT `FK_Reservations_Flights_FlightID` FOREIGN KEY (`FlightID`) REFERENCES `flights` (`FlightID`),
   ADD CONSTRAINT `FK_Reservations_Schedules_ScheduleID` FOREIGN KEY (`ScheduleID`) REFERENCES `schedules` (`ScheduleID`),
   ADD CONSTRAINT `FK_Reservations_Users_UserID` FOREIGN KEY (`UserID`) REFERENCES `users` (`UserID`) ON DELETE CASCADE;
