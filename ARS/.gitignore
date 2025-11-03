@@ -408,3 +408,4 @@ appsettings.*.Local.json
 
 # Flow folder (based on your current gitignore)
 Flow/
+.env
