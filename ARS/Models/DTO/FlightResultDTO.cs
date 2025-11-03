@@ -2,24 +2,31 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ARS.Models.DTO;
 
-public class FlightResultDTO{
-     public int FlightId { get; set; }
+public class FlightResultDTO
+{
+    public int FlightID { get; set; }
     public string FlightNumber { get; set; } = string.Empty;
-    public int OriginCityId { get; set; }
-    public string OriginCityName { get; set; } = string.Empty;
-    public string OriginCountry { get; set; } = string.Empty;
-    public string OriginAirportCode { get; set; } = string.Empty;
-    public int DestinationCityId { get; set; }
-    public string DestinationCityName { get; set; } = string.Empty;
-    public string DestinationCountry { get; set; } = string.Empty;
-    public string DestinationAirportCode { get; set; } = string.Empty;
+    
+    // Origin information
+    public string OriginCity { get; set; } = string.Empty;
+    public string OriginAirport { get; set; } = string.Empty;
+    
+    // Destination information
+    public string DestinationCity { get; set; } = string.Empty;
+    public string DestinationAirport { get; set; } = string.Empty;
+    
+    // Time information
     public DateTime DepartureTime { get; set; }
     public DateTime ArrivalTime { get; set; }
-    public int Duration { get; set; }
+    public int Duration { get; set; } // in minutes
+    
+    // Flight details
     public string AircraftType { get; set; } = string.Empty;
-    public int TotalSeats { get; set; }
-    public int AvailableSeats { get; set; }
     public decimal BaseFare { get; set; }
     public decimal TotalPrice { get; set; }
-    public List<ScheduleDTO> Schedules { get; set; } = new List<ScheduleDTO>();
+    public int AvailableSeats { get; set; }
+    
+    // Schedule information
+    public int ScheduleID { get; set; }
+    public DateTime DepartureDate { get; set; }
 }
