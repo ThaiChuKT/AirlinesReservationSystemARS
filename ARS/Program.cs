@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization; // <- THÊM DÒNG NÀY
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -27,25 +28,49 @@ if (File.Exists(envFile))
 }
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+// THÊM IgnoreCycles để tránh lỗi vòng lặp JSON khi trả navigation properties
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
 
-// Add DbContext
-var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") 
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// Session
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(60);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// DbContext
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
-// Add Services
+// Services
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IFlightService, FlightService>(); // Add this line
+builder.Services.AddScoped<IFlightService, FlightService>();
+builder.Services.AddSingleton<IEmailService, MockEmailService>();
+// Nếu sau có ReservationService/PaymentService thì đăng ký thêm ở đây
 
-// Configure JWT Authentication from Environment Variables or appsettings.json
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") 
-    ?? builder.Configuration["Jwt:Key"] 
+// JWT
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+    ?? builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT Key not configured");
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") 
+
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
     ?? builder.Configuration["Jwt:Issuer"];
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") 
+
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
     ?? builder.Configuration["Jwt:Audience"];
 
 builder.Services.AddAuthentication(options =>
@@ -71,7 +96,15 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Swagger middleware
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ARS API v1");
+    c.RoutePrefix = "swagger";
+});
+
+// Error + HSTS
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -80,6 +113,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+// Session phải trước Auth
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

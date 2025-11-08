@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Oct 29, 2025 at 03:34 PM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- Máy chủ: 127.0.0.1
+-- Thời gian đã tạo: Th10 08, 2025 lúc 09:56 AM
+-- Phiên bản máy phục vụ: 10.4.32-MariaDB
+-- Phiên bản PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,13 +18,13 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `arsdatabase`
+-- Cơ sở dữ liệu: `arsdatabase`
 --
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `cities`
+-- Cấu trúc bảng cho bảng `cities`
 --
 
 CREATE TABLE `cities` (
@@ -35,7 +35,7 @@ CREATE TABLE `cities` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `cities`
+-- Đang đổ dữ liệu cho bảng `cities`
 --
 
 INSERT INTO `cities` (`CityID`, `CityName`, `Country`, `AirportCode`) VALUES
@@ -48,7 +48,7 @@ INSERT INTO `cities` (`CityID`, `CityName`, `Country`, `AirportCode`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `flights`
+-- Cấu trúc bảng cho bảng `flights`
 --
 
 CREATE TABLE `flights` (
@@ -66,7 +66,7 @@ CREATE TABLE `flights` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `flights`
+-- Đang đổ dữ liệu cho bảng `flights`
 --
 
 INSERT INTO `flights` (`FlightID`, `FlightNumber`, `OriginCityID`, `DestinationCityID`, `DepartureTime`, `ArrivalTime`, `Duration`, `AircraftType`, `TotalSeats`, `BaseFare`, `PolicyID`) VALUES
@@ -83,7 +83,7 @@ INSERT INTO `flights` (`FlightID`, `FlightNumber`, `OriginCityID`, `DestinationC
 -- --------------------------------------------------------
 
 --
--- Table structure for table `payments`
+-- Cấu trúc bảng cho bảng `payments`
 --
 
 CREATE TABLE `payments` (
@@ -96,10 +96,17 @@ CREATE TABLE `payments` (
   `TransactionRefNo` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `payments`
+--
+
+INSERT INTO `payments` (`PaymentID`, `ReservationID`, `Amount`, `PaymentDate`, `PaymentMethod`, `TransactionStatus`, `TransactionRefNo`) VALUES
+(1, 3, 2500.00, '2025-11-08 08:53:39.413466', 'CreditCard', 'Completed', 'PG202511080853396544');
+
 -- --------------------------------------------------------
 
 --
--- Table structure for table `pricingpolicies`
+-- Cấu trúc bảng cho bảng `pricingpolicies`
 --
 
 CREATE TABLE `pricingpolicies` (
@@ -110,7 +117,7 @@ CREATE TABLE `pricingpolicies` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `pricingpolicies`
+-- Đang đổ dữ liệu cho bảng `pricingpolicies`
 --
 
 INSERT INTO `pricingpolicies` (`PolicyID`, `Description`, `DaysBeforeDeparture`, `PriceMultiplier`) VALUES
@@ -122,7 +129,7 @@ INSERT INTO `pricingpolicies` (`PolicyID`, `Description`, `DaysBeforeDeparture`,
 -- --------------------------------------------------------
 
 --
--- Table structure for table `refunds`
+-- Cấu trúc bảng cho bảng `refunds`
 --
 
 CREATE TABLE `refunds` (
@@ -136,7 +143,7 @@ CREATE TABLE `refunds` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `reservations`
+-- Cấu trúc bảng cho bảng `reservations`
 --
 
 CREATE TABLE `reservations` (
@@ -155,10 +162,18 @@ CREATE TABLE `reservations` (
   `BlockingNumber` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `reservations`
+--
+
+INSERT INTO `reservations` (`ReservationID`, `UserID`, `FlightID`, `ScheduleID`, `BookingDate`, `TravelDate`, `Status`, `NumAdults`, `NumChildren`, `NumSeniors`, `Class`, `ConfirmationNumber`, `BlockingNumber`) VALUES
+(2, 3, 3, 1, '2025-11-08', '2025-10-30', 'Confirmed', 1, 0, 0, 'Economy', 'ARS202511080744046686', NULL),
+(3, 3, 3, 1, '2025-11-08', '2025-10-30', 'Confirmed', 1, 0, 0, 'Economy', 'ARS202511080833469467', NULL);
+
 -- --------------------------------------------------------
 
 --
--- Table structure for table `schedules`
+-- Cấu trúc bảng cho bảng `schedules`
 --
 
 CREATE TABLE `schedules` (
@@ -170,7 +185,7 @@ CREATE TABLE `schedules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `schedules`
+-- Đang đổ dữ liệu cho bảng `schedules`
 --
 
 INSERT INTO `schedules` (`ScheduleID`, `FlightID`, `Date`, `Status`, `CityID`) VALUES
@@ -179,7 +194,7 @@ INSERT INTO `schedules` (`ScheduleID`, `FlightID`, `Date`, `Status`, `CityID`) V
 -- --------------------------------------------------------
 
 --
--- Table structure for table `users`
+-- Cấu trúc bảng cho bảng `users`
 --
 
 CREATE TABLE `users` (
@@ -198,7 +213,7 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `users`
+-- Đang đổ dữ liệu cho bảng `users`
 --
 
 INSERT INTO `users` (`UserID`, `FirstName`, `LastName`, `Email`, `Password`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`, `Role`) VALUES
@@ -208,7 +223,7 @@ INSERT INTO `users` (`UserID`, `FirstName`, `LastName`, `Email`, `Password`, `Ph
 -- --------------------------------------------------------
 
 --
--- Table structure for table `__efmigrationshistory`
+-- Cấu trúc bảng cho bảng `__efmigrationshistory`
 --
 
 CREATE TABLE `__efmigrationshistory` (
@@ -217,25 +232,25 @@ CREATE TABLE `__efmigrationshistory` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `__efmigrationshistory`
+-- Đang đổ dữ liệu cho bảng `__efmigrationshistory`
 --
 
 INSERT INTO `__efmigrationshistory` (`MigrationId`, `ProductVersion`) VALUES
 ('20251029121905_InitialCreate', '9.0.10');
 
 --
--- Indexes for dumped tables
+-- Chỉ mục cho các bảng đã đổ
 --
 
 --
--- Indexes for table `cities`
+-- Chỉ mục cho bảng `cities`
 --
 ALTER TABLE `cities`
   ADD PRIMARY KEY (`CityID`),
   ADD UNIQUE KEY `IX_Cities_AirportCode` (`AirportCode`);
 
 --
--- Indexes for table `flights`
+-- Chỉ mục cho bảng `flights`
 --
 ALTER TABLE `flights`
   ADD PRIMARY KEY (`FlightID`),
@@ -245,27 +260,27 @@ ALTER TABLE `flights`
   ADD KEY `IX_Flights_PolicyID` (`PolicyID`);
 
 --
--- Indexes for table `payments`
+-- Chỉ mục cho bảng `payments`
 --
 ALTER TABLE `payments`
   ADD PRIMARY KEY (`PaymentID`),
   ADD KEY `IX_Payments_ReservationID` (`ReservationID`);
 
 --
--- Indexes for table `pricingpolicies`
+-- Chỉ mục cho bảng `pricingpolicies`
 --
 ALTER TABLE `pricingpolicies`
   ADD PRIMARY KEY (`PolicyID`);
 
 --
--- Indexes for table `refunds`
+-- Chỉ mục cho bảng `refunds`
 --
 ALTER TABLE `refunds`
   ADD PRIMARY KEY (`RefundID`),
   ADD KEY `IX_Refunds_ReservationID` (`ReservationID`);
 
 --
--- Indexes for table `reservations`
+-- Chỉ mục cho bảng `reservations`
 --
 ALTER TABLE `reservations`
   ADD PRIMARY KEY (`ReservationID`),
@@ -275,7 +290,7 @@ ALTER TABLE `reservations`
   ADD KEY `IX_Reservations_UserID` (`UserID`);
 
 --
--- Indexes for table `schedules`
+-- Chỉ mục cho bảng `schedules`
 --
 ALTER TABLE `schedules`
   ADD PRIMARY KEY (`ScheduleID`),
@@ -283,76 +298,76 @@ ALTER TABLE `schedules`
   ADD KEY `IX_Schedules_FlightID` (`FlightID`);
 
 --
--- Indexes for table `users`
+-- Chỉ mục cho bảng `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`UserID`),
   ADD UNIQUE KEY `IX_Users_Email` (`Email`);
 
 --
--- Indexes for table `__efmigrationshistory`
+-- Chỉ mục cho bảng `__efmigrationshistory`
 --
 ALTER TABLE `__efmigrationshistory`
   ADD PRIMARY KEY (`MigrationId`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT cho các bảng đã đổ
 --
 
 --
--- AUTO_INCREMENT for table `cities`
+-- AUTO_INCREMENT cho bảng `cities`
 --
 ALTER TABLE `cities`
   MODIFY `CityID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `flights`
+-- AUTO_INCREMENT cho bảng `flights`
 --
 ALTER TABLE `flights`
   MODIFY `FlightID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
--- AUTO_INCREMENT for table `payments`
+-- AUTO_INCREMENT cho bảng `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `PaymentID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `PaymentID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `pricingpolicies`
+-- AUTO_INCREMENT cho bảng `pricingpolicies`
 --
 ALTER TABLE `pricingpolicies`
   MODIFY `PolicyID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `refunds`
+-- AUTO_INCREMENT cho bảng `refunds`
 --
 ALTER TABLE `refunds`
   MODIFY `RefundID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `reservations`
+-- AUTO_INCREMENT cho bảng `reservations`
 --
 ALTER TABLE `reservations`
-  MODIFY `ReservationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `ReservationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `schedules`
+-- AUTO_INCREMENT cho bảng `schedules`
 --
 ALTER TABLE `schedules`
   MODIFY `ScheduleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `users`
+-- AUTO_INCREMENT cho bảng `users`
 --
 ALTER TABLE `users`
   MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- Constraints for dumped tables
+-- Các ràng buộc cho các bảng đã đổ
 --
 
 --
--- Constraints for table `flights`
+-- Các ràng buộc cho bảng `flights`
 --
 ALTER TABLE `flights`
   ADD CONSTRAINT `FK_Flights_Cities_DestinationCityID` FOREIGN KEY (`DestinationCityID`) REFERENCES `cities` (`CityID`),
@@ -360,19 +375,19 @@ ALTER TABLE `flights`
   ADD CONSTRAINT `FK_Flights_PricingPolicies_PolicyID` FOREIGN KEY (`PolicyID`) REFERENCES `pricingpolicies` (`PolicyID`) ON DELETE SET NULL;
 
 --
--- Constraints for table `payments`
+-- Các ràng buộc cho bảng `payments`
 --
 ALTER TABLE `payments`
   ADD CONSTRAINT `FK_Payments_Reservations_ReservationID` FOREIGN KEY (`ReservationID`) REFERENCES `reservations` (`ReservationID`) ON DELETE CASCADE;
 
 --
--- Constraints for table `refunds`
+-- Các ràng buộc cho bảng `refunds`
 --
 ALTER TABLE `refunds`
   ADD CONSTRAINT `FK_Refunds_Reservations_ReservationID` FOREIGN KEY (`ReservationID`) REFERENCES `reservations` (`ReservationID`) ON DELETE CASCADE;
 
 --
--- Constraints for table `reservations`
+-- Các ràng buộc cho bảng `reservations`
 --
 ALTER TABLE `reservations`
   ADD CONSTRAINT `FK_Reservations_Flights_FlightID` FOREIGN KEY (`FlightID`) REFERENCES `flights` (`FlightID`),
@@ -380,7 +395,7 @@ ALTER TABLE `reservations`
   ADD CONSTRAINT `FK_Reservations_Users_UserID` FOREIGN KEY (`UserID`) REFERENCES `users` (`UserID`) ON DELETE CASCADE;
 
 --
--- Constraints for table `schedules`
+-- Các ràng buộc cho bảng `schedules`
 --
 ALTER TABLE `schedules`
   ADD CONSTRAINT `FK_Schedules_Cities_CityID` FOREIGN KEY (`CityID`) REFERENCES `cities` (`CityID`) ON DELETE SET NULL,
