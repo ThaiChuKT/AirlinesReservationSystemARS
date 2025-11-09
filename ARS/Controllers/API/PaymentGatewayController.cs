@@ -1,6 +1,7 @@
 using ARS.Data;
 using ARS.DTO;
 using ARS.Models;
+using ARS.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,23 +13,27 @@ namespace ARS.Controllers.Api
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<PaymentGatewayController> _logger;
+        private readonly IEmailService _emailService;
 
-        public PaymentGatewayController(ApplicationDbContext context, ILogger<PaymentGatewayController> logger)
+        public PaymentGatewayController(
+            ApplicationDbContext context,
+            ILogger<PaymentGatewayController> logger,
+            IEmailService emailService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
         }
 
         private static string GenRef() =>
             $"PG{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
 
-        /// <summary>
-        /// Khởi tạo thanh toán: tạo Payment (Pending) và trả về URL giả lập gateway.
-        /// </summary>
         [HttpPost("initiate")]
         public async Task<IActionResult> Initiate([FromBody] PaymentGatewayRequestDTO dto)
         {
             var reservation = await _context.Reservations
+                .Include(r => r.User)
+                .Include(r => r.Flight)
                 .FirstOrDefaultAsync(r => r.ReservationID == dto.ReservationID);
 
             if (reservation is null)
@@ -37,7 +42,6 @@ namespace ARS.Controllers.Api
             if (dto.Amount <= 0)
                 return BadRequest("Amount phải > 0.");
 
-            // Tạo bản ghi Payment trạng thái Pending
             var payment = new Payment
             {
                 ReservationID = dto.ReservationID,
@@ -50,11 +54,9 @@ namespace ARS.Controllers.Api
             _context.Payments.Add(payment);
             await _context.SaveChangesAsync();
 
-            // Tạo URL callback giả lập (success & fail) để test trên Swagger
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-
             var successUrl = $"{baseUrl}/api/PaymentGateway/mock-callback?paymentId={payment.PaymentID}&result=success";
-            var failUrl    = $"{baseUrl}/api/PaymentGateway/mock-callback?paymentId={payment.PaymentID}&result=fail";
+            var failUrl = $"{baseUrl}/api/PaymentGateway/mock-callback?paymentId={payment.PaymentID}&result=fail";
 
             return Ok(new
             {
@@ -66,9 +68,6 @@ namespace ARS.Controllers.Api
             });
         }
 
-        /// <summary>
-        /// Endpoint mô phỏng callback từ Payment Gateway (Success / Fail).
-        /// </summary>
         [HttpGet("mock-callback")]
         public async Task<IActionResult> MockCallback([FromQuery] int paymentId, [FromQuery] string result)
         {
@@ -79,12 +78,15 @@ namespace ARS.Controllers.Api
                 return NotFound("Payment không tồn tại.");
 
             var reservation = await _context.Reservations
+                .Include(r => r.User)
+                .Include(r => r.Flight).ThenInclude(f => f.OriginCity)
+                .Include(r => r.Flight).ThenInclude(f => f.DestinationCity)
                 .FirstOrDefaultAsync(r => r.ReservationID == payment.ReservationID);
 
             if (reservation is null)
                 return NotFound("Reservation không tồn tại.");
 
-            if (payment.TransactionStatus == "Completed" || payment.TransactionStatus == "Failed")
+            if (payment.TransactionStatus is "Completed" or "Failed")
             {
                 return BadRequest("Giao dịch này đã được xử lý trước đó.");
             }
@@ -97,26 +99,54 @@ namespace ARS.Controllers.Api
                 payment.TransactionRefNo = GenRef();
                 payment.PaymentDate = DateTime.UtcNow;
 
-                // Logic đơn giản:
-                // Nếu reservation đang Blocked hoặc Pending => chuyển sang Confirmed khi thanh toán thành công.
                 if (reservation.Status.Equals("Blocked", StringComparison.OrdinalIgnoreCase) ||
                     reservation.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
                 {
                     reservation.Status = "Confirmed";
+
                     if (string.IsNullOrWhiteSpace(reservation.ConfirmationNumber))
                     {
-                        reservation.ConfirmationNumber = $"ARS{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
+                        reservation.ConfirmationNumber =
+                            $"ARS{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
                     }
+
                     reservation.BlockingNumber = null;
+                }
+
+                // Gửi email mock xác nhận
+                if (!string.IsNullOrWhiteSpace(reservation.User?.Email))
+                {
+                    var subject = $"[ARS] Booking Confirmed - {reservation.ConfirmationNumber}";
+                    var body =
+                        $"Xin chào {reservation.User.FirstName} {reservation.User.LastName},\n\n" +
+                        $"Thanh toán cho đặt chỗ #{reservation.ReservationID} đã THÀNH CÔNG.\n" +
+                        $"Mã xác nhận: {reservation.ConfirmationNumber}\n" +
+                        $"Chặng bay: {reservation.Flight?.OriginCity?.CityName} -> {reservation.Flight?.DestinationCity?.CityName}\n" +
+                        $"Giờ khởi hành: {reservation.Flight?.DepartureTime}\n" +
+                        $"Mã giao dịch: {payment.TransactionRefNo}\n" +
+                        $"Trạng thái vé: {reservation.Status}\n\n" +
+                        $"(Đây là email mô phỏng phục vụ demo ARS.)";
+
+                    await _emailService.SendAsync(reservation.User.Email, subject, body);
                 }
             }
             else if (result == "fail")
             {
                 payment.TransactionStatus = "Failed";
                 payment.TransactionRefNo = GenRef();
+                payment.PaymentDate = DateTime.UtcNow;
 
-                // Có thể giữ nguyên trạng thái reservation (Blocked / Pending).
-                // Tuỳ yêu cầu dự án, có thể auto-cancel.
+                if (!string.IsNullOrWhiteSpace(reservation.User?.Email))
+                {
+                    var subject = "[ARS] Thanh toán thất bại";
+                    var body =
+                        $"Xin chào {reservation.User.FirstName} {reservation.User.LastName},\n\n" +
+                        $"Thanh toán cho đặt chỗ #{reservation.ReservationID} đã THẤT BẠI.\n" +
+                        $"Vui lòng thử lại hoặc dùng phương thức thanh toán khác.\n\n" +
+                        $"(Đây là email mô phỏng phục vụ demo ARS.)";
+
+                    await _emailService.SendAsync(reservation.User.Email, subject, body);
+                }
             }
             else
             {

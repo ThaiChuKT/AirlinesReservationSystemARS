@@ -18,7 +18,7 @@ namespace ARS.Services
 
             _messages.Add(msg);
 
-            // Log ra console cho dễ debug
+            // In ra console cho dễ thấy khi debug
             Console.WriteLine("=== MOCK EMAIL SENT ===");
             Console.WriteLine($"To: {to}");
             Console.WriteLine($"Subject: {subject}");
@@ -29,8 +29,6 @@ namespace ARS.Services
         }
 
         public IReadOnlyList<MockEmailMessage> GetAll()
-        {
-            return _messages.ToList();
-        }
+            => _messages.ToList();
     }
 }

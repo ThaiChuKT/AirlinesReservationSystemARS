@@ -1,0 +1,36 @@
+@model IEnumerable<ARS.Services.MockEmailMessage>
+
+@{
+    ViewData["Title"] = "Mock Emails";
+}
+
+<h2>Mock Emails</h2>
+
+@if (!Model.Any())
+{
+    <p>Chưa có email mock nào được gửi.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Thời gian</th>
+                <th>Người nhận</th>
+                <th>Tiêu đề</th>
+                <th>Nội dung</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var mail in Model)
+        {
+            <tr>
+                <td>@mail.SentAt.ToLocalTime()</td>
+                <td>@mail.To</td>
+                <td>@mail.Subject</td>
+                <td><pre>@mail.Body</pre></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

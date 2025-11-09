@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th10 08, 2025 lúc 05:40 PM
+-- Thời gian đã tạo: Th10 09, 2025 lúc 05:32 PM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -104,7 +104,8 @@ INSERT INTO `payments` (`PaymentID`, `ReservationID`, `Amount`, `PaymentDate`, `
 (1, 3, 2500.00, '2025-11-08 08:53:39.413466', 'CreditCard', 'Completed', 'PAYTEST123'),
 (2, 3, 2500.00, '2025-11-08 16:38:27.313773', 'CreditCard', 'Completed', 'PG202511081638277066'),
 (3, 2, 2500.00, '2025-11-08 16:17:52.205296', 'CreditCard', 'Failed', 'PG202511081638486845'),
-(4, 5, 2500.00, '2025-11-08 16:37:33.974198', 'CreditCard', 'Pending', NULL);
+(4, 5, 2500.00, '2025-11-08 16:37:33.974198', 'CreditCard', 'Pending', NULL),
+(5, 6, 2500.00, '2025-11-09 16:28:44.030204', 'CreditCard', 'Completed', 'PG202511091628447235');
 
 -- --------------------------------------------------------
 
@@ -173,7 +174,8 @@ INSERT INTO `reservations` (`ReservationID`, `UserID`, `FlightID`, `ScheduleID`,
 (2, 3, 3, 1, '2025-11-08', '2025-10-30', 'Confirmed', 1, 0, 0, 'Economy', 'ARS202511080744046686', NULL),
 (3, 3, 3, 1, '2025-11-08', '2025-10-30', 'Confirmed', 1, 0, 0, 'Economy', 'ARS202511080833469467', NULL),
 (4, 3, 3, 1, '2025-11-08', '2025-10-30', 'Cancelled', 1, 0, 0, 'Economy', 'ARS202511081604368390', NULL),
-(5, 3, 3, 1, '2025-11-08', '2025-10-30', 'Blocked', 1, 0, 0, 'Economy', 'ARS202511081624294635', 'BLK20251108162429206');
+(5, 3, 3, 1, '2025-11-08', '2025-10-30', 'Blocked', 1, 0, 0, 'Economy', 'ARS202511081624294635', 'BLK20251108162429206'),
+(6, 3, 3, 1, '2025-11-09', '2025-10-30', 'Confirmed', 1, 0, 0, 'Economy', 'ARS202511091627014088', NULL);
 
 -- --------------------------------------------------------
 
@@ -335,7 +337,7 @@ ALTER TABLE `flights`
 -- AUTO_INCREMENT cho bảng `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `PaymentID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `PaymentID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `pricingpolicies`
@@ -353,7 +355,7 @@ ALTER TABLE `refunds`
 -- AUTO_INCREMENT cho bảng `reservations`
 --
 ALTER TABLE `reservations`
-  MODIFY `ReservationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `ReservationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT cho bảng `schedules`
