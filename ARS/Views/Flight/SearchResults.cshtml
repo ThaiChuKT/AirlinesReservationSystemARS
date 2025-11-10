@@ -40,7 +40,7 @@
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="text-center">
-                                    <h4 class="mb-0">@flight.DepartureTime.ToString("HH:mm")</h4>
+                                    <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
                                     <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
                                     <small class="text-muted">@flight.OriginCity</small>
                                 </div>
@@ -51,7 +51,7 @@
                                 </div>
                                 
                                 <div class="text-center">
-                                    <h4 class="mb-0">@flight.ArrivalTime.ToString("HH:mm")</h4>
+                                    <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
                                     <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
                                     <small class="text-muted">@flight.DestinationCity</small>
                                 </div>

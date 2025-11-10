@@ -44,6 +44,22 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxSZWdpc3Rlci5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Flight/All.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmxpZ2h0XEFsbC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Flight/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmxpZ2h0XENyZWF0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Flight/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmxpZ2h0XERlbGV0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Flight/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmxpZ2h0XEVkaXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Flight/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRmxpZ2h0XEluZGV4LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
@@ -58,6 +74,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Home/Privacy.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxQcml2YWN5LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Refund/Cancel.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUmVmdW5kXENhbmNlbC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Reservation/Confirmation.cshtml]
@@ -78,6 +98,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Reservation/MyReservations.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUmVzZXJ2YXRpb25cTXlSZXNlcnZhdGlvbnMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Schedule/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2NoZWR1bGVcQ3JlYXRlLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Kruwul/Documents/GitHub/AirlinesReservationSystemARS/ARS/Views/Shared/Error.cshtml]

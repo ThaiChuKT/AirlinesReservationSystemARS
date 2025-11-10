@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ARS.Data;
 using ARS.Models;
 using ARS.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ARS.Controllers
 {
@@ -17,11 +18,115 @@ namespace ARS.Controllers
         }
 
         // GET: Flight
-        public async Task<IActionResult> Index()
+        // Consolidated flights page at /Flight (supports filter query parameters)
+        public async Task<IActionResult> Index([FromQuery] FlightSearchViewModel? search)
         {
-            var model = new FlightSearchViewModel();
             await PopulateCityDropdowns();
-            return View(model);
+
+            // Provide defaults when values aren't supplied
+            if (search == null)
+            {
+                search = new FlightSearchViewModel();
+            }
+
+            if (search.Passengers < 1)
+                search.Passengers = 1;
+
+            if (string.IsNullOrEmpty(search.Class))
+                search.Class = "Economy";
+
+            if (search.TravelDate == default)
+                search.TravelDate = DateOnly.FromDateTime(DateTime.Now.AddDays(1));
+
+            // Load flights with related data
+            var flightsQuery = _context.Flights
+                .Include(f => f.OriginCity)
+                .Include(f => f.DestinationCity)
+                .Include(f => f.Schedules)
+                .Include(f => f.Reservations)
+                .AsQueryable();
+
+            // Apply origin/destination filters if provided
+            if (search.OriginCityID != 0)
+                flightsQuery = flightsQuery.Where(f => f.OriginCityID == search.OriginCityID);
+            if (search.DestinationCityID != 0)
+                flightsQuery = flightsQuery.Where(f => f.DestinationCityID == search.DestinationCityID);
+
+            // If a travel date is provided, only include flights that have a schedule on that date
+            if (search.TravelDate != default)
+                flightsQuery = flightsQuery.Where(f => f.Schedules.Any(s => s.Date == search.TravelDate));
+
+            var flights = await flightsQuery.ToListAsync();
+
+            var results = new FlightSearchResultViewModel
+            {
+                SearchCriteria = search,
+                Flights = flights.Select(f =>
+                {
+                    // Prefer the first schedule on or after the requested travel date, otherwise the earliest
+                    var schedule = f.Schedules
+                        .Where(s => s.Date >= search.TravelDate)
+                        .OrderBy(s => s.Date)
+                        .FirstOrDefault()
+                        ?? f.Schedules.OrderBy(s => s.Date).FirstOrDefault();
+
+                    // Use schedule date to compute departure/arrival datetimes when available
+                    var travelDateForCalc = schedule?.Date ?? search.TravelDate;
+                    var departure = schedule != null
+                        ? schedule.Date.ToDateTime(TimeOnly.FromDateTime(f.DepartureTime))
+                        : f.DepartureTime;
+                    var arrival = schedule != null
+                        ? schedule.Date.ToDateTime(TimeOnly.FromDateTime(f.ArrivalTime))
+                        : f.ArrivalTime;
+
+                    // Calculate booked seats for chosen travel date
+                    var bookedSeats = f.Reservations
+                        .Where(r => r.TravelDate == travelDateForCalc && r.Status != "Cancelled")
+                        .Sum(r => r.NumAdults + r.NumChildren + r.NumSeniors);
+                    var availableSeats = f.TotalSeats - bookedSeats;
+
+                    // Price multipliers
+                    var basePrice = f.BaseFare;
+                    var classMultiplier = search.Class switch
+                    {
+                        "Business" => 2.0m,
+                        "First" => 3.5m,
+                        _ => 1.0m
+                    };
+
+                    var daysBeforeDeparture = (travelDateForCalc.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                    var timingMultiplier = daysBeforeDeparture switch
+                    {
+                        >= 30 => 0.80m,
+                        >= 15 => 1.00m,
+                        >= 7 => 1.20m,
+                        _ => 1.50m
+                    };
+
+                    return new FlightResultItem
+                    {
+                        FlightID = f.FlightID,
+                        FlightNumber = f.FlightNumber,
+                        OriginCity = f.OriginCity?.CityName ?? "",
+                        OriginAirportCode = f.OriginCity?.AirportCode ?? "",
+                        DestinationCity = f.DestinationCity?.CityName ?? "",
+                        DestinationAirportCode = f.DestinationCity?.AirportCode ?? "",
+                        DepartureTime = departure,
+                        ArrivalTime = arrival,
+                        Duration = f.Duration,
+                        AircraftType = f.AircraftType,
+                        AvailableSeats = availableSeats,
+                        BasePrice = basePrice,
+                        FinalPrice = basePrice * classMultiplier * timingMultiplier * search.Passengers,
+                        ScheduleID = schedule?.ScheduleID
+                    };
+                })
+                .Where(f => f.AvailableSeats >= search.Passengers)
+                .OrderBy(f => f.DepartureTime)
+                .ToList()
+            };
+
+            return View("All", results);
         }
 
         // POST: Flight/Search
@@ -48,10 +153,19 @@ namespace ARS.Controllers
             var results = new FlightSearchResultViewModel
             {
                 SearchCriteria = model,
-                Flights = flights.Select(f => {
+                Flights = flights.Select(f =>
+                {
                     // Find schedule for the travel date
                     var schedule = f.Schedules.FirstOrDefault(s => s.Date == model.TravelDate);
-                    
+
+                    // Build effective departure/arrival datetimes using schedule date when available
+                    var departure = schedule != null
+                        ? schedule.Date.ToDateTime(TimeOnly.FromDateTime(f.DepartureTime))
+                        : f.DepartureTime;
+                    var arrival = schedule != null
+                        ? schedule.Date.ToDateTime(TimeOnly.FromDateTime(f.ArrivalTime))
+                        : f.ArrivalTime;
+
                     // Calculate available seats
                     var bookedSeats = f.Reservations
                         .Where(r => r.TravelDate == model.TravelDate && r.Status != "Cancelled")
@@ -85,8 +199,8 @@ namespace ARS.Controllers
                         OriginAirportCode = f.OriginCity?.AirportCode ?? "",
                         DestinationCity = f.DestinationCity?.CityName ?? "",
                         DestinationAirportCode = f.DestinationCity?.AirportCode ?? "",
-                        DepartureTime = f.DepartureTime,
-                        ArrivalTime = f.ArrivalTime,
+                        DepartureTime = departure,
+                        ArrivalTime = arrival,
                         Duration = f.Duration,
                         AircraftType = f.AircraftType,
                         AvailableSeats = availableSeats,
@@ -95,37 +209,24 @@ namespace ARS.Controllers
                         ScheduleID = schedule?.ScheduleID
                     };
                 })
-                .Where(f => f.AvailableSeats >= model.Passengers)
-                .OrderBy(f => f.DepartureTime)
+                .Where(fr => fr.AvailableSeats >= model.Passengers)
+                .OrderBy(fr => fr.DepartureTime)
                 .ToList()
             };
 
             return View("SearchResults", results);
         }
 
-        // GET: Flight/Details/5
-        public async Task<IActionResult> Details(int? id)
+        // Preserve old /Flight/All links: redirect permanently to /Flight keeping the same query string
+        [HttpGet]
+        public IActionResult All()
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var flight = await _context.Flights
-                .Include(f => f.OriginCity)
-                .Include(f => f.DestinationCity)
-                .Include(f => f.PricingPolicy)
-                .FirstOrDefaultAsync(m => m.FlightID == id);
-
-            if (flight == null)
-            {
-                return NotFound();
-            }
-
-            return View(flight);
+            var qs = Request?.QueryString.HasValue == true ? Request.QueryString.Value : string.Empty;
+            return RedirectPermanent($"/Flight{qs}");
         }
 
         // GET: Flight/Create
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create()
         {
             await PopulateCityDropdowns();
@@ -134,14 +235,42 @@ namespace ARS.Controllers
         }
 
         // POST: Flight/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("FlightNumber,OriginCityID,DestinationCityID,DepartureTime,ArrivalTime,Duration,AircraftType,TotalSeats,BaseFare,PolicyID")] Flight flight)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Create([Bind("FlightNumber,OriginCityID,DestinationCityID,DepartureTime,ArrivalTime,Duration,AircraftType,TotalSeats,BaseFare,PolicyID")] Flight flight)
         {
             if (ModelState.IsValid)
             {
                 _context.Add(flight);
                 await _context.SaveChangesAsync();
+                // Automatically create a Schedule for the newly created flight so it appears in date-based searches.
+                // Use the departure date portion of the provided DepartureTime as the schedule date.
+                try
+                {
+                    var scheduleDate = DateOnly.FromDateTime(flight.DepartureTime);
+
+                    var exists = await _context.Schedules
+                        .AnyAsync(s => s.FlightID == flight.FlightID && s.Date == scheduleDate);
+
+                    if (!exists)
+                    {
+                        var schedule = new Schedule
+                        {
+                            FlightID = flight.FlightID,
+                            Date = scheduleDate,
+                            Status = "Scheduled"
+                        };
+                        _context.Schedules.Add(schedule);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch
+                {
+                    // Swallow any schedule-creation errors so flight creation still succeeds.
+                    // The admin can always add schedules manually via the Schedule management UI.
+                }
+
                 return RedirectToAction(nameof(Index));
             }
             await PopulateCityDropdowns();
@@ -150,7 +279,8 @@ namespace ARS.Controllers
         }
 
         // GET: Flight/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
             {
@@ -168,9 +298,10 @@ namespace ARS.Controllers
         }
 
         // POST: Flight/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("FlightID,FlightNumber,OriginCityID,DestinationCityID,DepartureTime,ArrivalTime,Duration,AircraftType,TotalSeats,BaseFare,PolicyID")] Flight flight)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Edit(int id, [Bind("FlightID,FlightNumber,OriginCityID,DestinationCityID,DepartureTime,ArrivalTime,Duration,AircraftType,TotalSeats,BaseFare,PolicyID")] Flight flight)
         {
             if (id != flight.FlightID)
             {
@@ -203,7 +334,8 @@ namespace ARS.Controllers
         }
 
         // GET: Flight/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
             {
@@ -225,9 +357,10 @@ namespace ARS.Controllers
         }
 
         // POST: Flight/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var flight = await _context.Flights.FindAsync(id);
             if (flight != null)

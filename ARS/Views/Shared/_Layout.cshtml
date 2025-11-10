@@ -41,6 +41,14 @@
                                 <i class="bi bi-database"></i> Test DB
                             </a>
                         </li>
+                        @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Flight" asp-action="Index">
+                                    <i class="bi bi-gear"></i> Manage Flights
+                                </a>
+                            </li>
+                        }
                     </ul>
                     <ul class="navbar-nav">
                         @if (User.Identity?.IsAuthenticated == true)

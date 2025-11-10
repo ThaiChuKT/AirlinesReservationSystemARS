@@ -1,0 +1,153 @@
+@model ARS.ViewModels.FlightSearchResultViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "All Flights";
+}
+
+<div class="container mt-4">
+    @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+    {
+        <div class="d-flex justify-content-end mb-3">
+            <a asp-action="Create" class="btn btn-outline-primary">
+                <i class="bi bi-plus-circle"></i> Add Flight
+            </a>
+        </div>
+    }
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light">
+            <form asp-action="All" method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">From</label>
+                    @{ var cities = (IEnumerable<SelectListItem>)ViewBag.Cities; }
+                    <select name="OriginCityID" class="form-select">
+                        <option value="">All Origins</option>
+                        @foreach (var c in cities)
+                        {
+                            var isSelected = Model.SearchCriteria.OriginCityID.ToString() == c.Value;
+                            var optionHtml = isSelected
+                                ? $"<option value=\"{c.Value}\" selected=\"selected\">{c.Text}</option>"
+                                : $"<option value=\"{c.Value}\">{c.Text}</option>";
+                            @Html.Raw(optionHtml)
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">To</label>
+                    <select name="DestinationCityID" class="form-select">
+                        <option value="">All Destinations</option>
+                        @foreach (var c in cities)
+                        {
+                            var isSelected = Model.SearchCriteria.DestinationCityID.ToString() == c.Value;
+                            var optionHtml = isSelected
+                                ? $"<option value=\"{c.Value}\" selected=\"selected\">{c.Text}</option>"
+                                : $"<option value=\"{c.Value}\">{c.Text}</option>";
+                            @Html.Raw(optionHtml)
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Travel Date</label>
+                    <input type="date" name="TravelDate" class="form-control" value="@Model.SearchCriteria.TravelDate.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Number of Passengers</label>
+                    <input type="number" name="Passengers" min="1" max="10" class="form-control" value="@Model.SearchCriteria.Passengers" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Class</label>
+                    <select name="Class" class="form-select">
+                        @{ var sEconomy = Model.SearchCriteria.Class == "Economy"; }
+                        @{ var sBusiness = Model.SearchCriteria.Class == "Business"; }
+                        @{ var sFirst = Model.SearchCriteria.Class == "First"; }
+                        @Html.Raw(sEconomy ? "<option value=\"Economy\" selected=\"selected\">Economy</option>" : "<option value=\"Economy\">Economy</option>")
+                        @Html.Raw(sBusiness ? "<option value=\"Business\" selected=\"selected\">Business</option>" : "<option value=\"Business\">Business</option>")
+                        @Html.Raw(sFirst ? "<option value=\"First\" selected=\"selected\">First Class</option>" : "<option value=\"First\">First Class</option>")
+                    </select>
+                </div>
+
+                <div class="col-md-6 align-self-end text-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-filter"></i> Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* Reuse the SearchResults markup to show results *@
+    @if (Model.Flights.Any())
+    {
+        <h4 class="mb-3">Found @Model.Flights.Count flight(s)</h4>
+        @foreach (var flight in Model.Flights)
+        {
+            <div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
+                            <small class="text-muted">@flight.AircraftType</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-center">
+                                    <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                    <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
+                                    <small class="text-muted">@flight.OriginCity</small>
+                                </div>
+
+                                <div class="text-center flex-grow-1 px-3">
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <p class="mb-0 text-muted">@flight.Duration min</p>
+                                </div>
+
+                                <div class="text-center">
+                                    <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                    <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
+                                    <small class="text-muted">@flight.DestinationCity</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 text-end">
+                            <h3 class="text-success mb-1">₱@flight.FinalPrice.ToString("N2")</h3>
+                            <p class="mb-2 text-muted small">
+                                <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
+                            </p>
+                            <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                            <a asp-controller="Reservation"
+                               asp-action="Create"
+                               asp-route-flightId="@flight.FlightID"
+                               asp-route-scheduleId="@flight.ScheduleID"
+                               asp-route-travelDate="@Model.SearchCriteria.TravelDate"
+                               asp-route-numAdults="@Model.SearchCriteria.Passengers"
+                               asp-route-class="@Model.SearchCriteria.Class"
+                               class="btn btn-primary w-100 mb-2">
+                                Book Now
+                            </a>
+
+                            @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+                            {
+                                <div class="d-grid gap-2">
+                                    <a asp-action="Edit" asp-route-id="@flight.FlightID" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <a asp-action="Delete" asp-route-id="@flight.FlightID" class="btn btn-sm btn-outline-danger">Delete</a>
+                                    
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-warning text-center" role="alert">
+            <i class="bi bi-exclamation-triangle fs-1"></i>
+            <h4 class="mt-3">No flights found</h4>
+            <p>Sorry, we couldn't find any flights matching your filter criteria. Try clearing filters or selecting different cities/dates.</p>
+        </div>
+    }
+</div>

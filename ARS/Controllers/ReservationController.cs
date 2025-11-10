@@ -141,6 +141,26 @@ namespace ARS.Controllers
             };
 
             _context.Reservations.Add(reservation);
+            // Ensure a legacy Users row exists for compatibility with existing FK in the database.
+            // Some databases have both AspNetUsers (Identity) and a legacy Users table. The Reservations
+            // table in some deployments enforces a FK to the legacy Users table as well, which will
+            // cause inserts to fail unless a corresponding Users row exists. Insert a lightweight
+            // legacy record if missing. Use an idempotent INSERT ... SELECT ... WHERE NOT EXISTS pattern.
+            try
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync($@"
+INSERT INTO `Users` (`UserID`, `FirstName`, `LastName`, `Email`, `Password`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`, `Role`)
+SELECT {user.Id}, {user.FirstName}, {user.LastName}, {user.Email}, '', {user.Phone}, {user.Address}, {user.Gender.ToString()}, {user.Age}, {user.CreditCardNumber}, {user.SkyMiles}, 'Customer'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
+" );
+            }
+            catch
+            {
+                // If this insert fails (e.g. legacy Users table not present) continue and rely on the
+                // AspNetUsers FK (the database may not enforce the legacy FK in some environments).
+            }
+
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Confirmation), new { id = reservation.ReservationID });

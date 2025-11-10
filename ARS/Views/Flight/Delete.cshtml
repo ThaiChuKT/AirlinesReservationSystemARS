@@ -1,0 +1,26 @@
+@model ARS.Models.Flight
+@{
+    ViewData["Title"] = "Delete Flight";
+}
+
+<div class="container mt-4">
+    <h3>Delete Flight</h3>
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="text-primary">@Model.FlightNumber</h5>
+            <p>@Model.AircraftType</p>
+            <p><strong>Route:</strong> @Model.OriginCity?.CityName -> @Model.DestinationCity?.CityName</p>
+            <p><strong>Departure:</strong> @Model.DepartureTime.ToString("MMM dd, yyyy HH:mm")</p>
+            <p><strong>Arrival:</strong> @Model.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</p>
+            <p><strong>Seats:</strong> @Model.TotalSeats</p>
+            <p><strong>Base Fare:</strong> ₱@Model.BaseFare.ToString("N2")</p>
+        </div>
+    </div>
+
+    <form asp-action="Delete" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="FlightID" />
+        <button type="submit" class="btn btn-danger">Confirm Delete</button>
+        <a asp-action="Index" class="btn btn-secondary ms-2">Cancel</a>
+    </form>
+</div>

@@ -1,0 +1,82 @@
+@model ARS.Models.Flight
+@{
+    ViewData["Title"] = "Add Flight";
+}
+
+<div class="container mt-4">
+    <h3>Add Flight</h3>
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Flight Number</label>
+                <input asp-for="FlightNumber" class="form-control" />
+                <span asp-validation-for="FlightNumber" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Aircraft Type</label>
+                <input asp-for="AircraftType" class="form-control" />
+                <span asp-validation-for="AircraftType" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Origin City</label>
+                <select asp-for="OriginCityID" asp-items="@(ViewData["OriginCityID"] as SelectList)" class="form-select"></select>
+                <span asp-validation-for="OriginCityID" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Destination City</label>
+                <select asp-for="DestinationCityID" asp-items="@(ViewData["DestinationCityID"] as SelectList)" class="form-select"></select>
+                <span asp-validation-for="DestinationCityID" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Departure Time</label>
+                <input asp-for="DepartureTime" type="datetime-local" class="form-control" />
+                <span asp-validation-for="DepartureTime" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Arrival Time</label>
+                <input asp-for="ArrivalTime" type="datetime-local" class="form-control" />
+                <span asp-validation-for="ArrivalTime" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Duration (min)</label>
+                <input asp-for="Duration" class="form-control" />
+                <span asp-validation-for="Duration" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Total Seats</label>
+                <input asp-for="TotalSeats" class="form-control" />
+                <span asp-validation-for="TotalSeats" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Base Fare</label>
+                <input asp-for="BaseFare" class="form-control" />
+                <span asp-validation-for="BaseFare" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Pricing Policy</label>
+                <select asp-for="PolicyID" asp-items="@(ViewData["PolicyID"] as SelectList)" class="form-select">
+                    <option value="">(None)</option>
+                </select>
+            </div>
+
+            <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <a asp-action="Index" class="btn btn-secondary ms-2">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
