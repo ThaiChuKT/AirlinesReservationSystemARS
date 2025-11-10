@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ARS.Models
 {
+    [Table("schedules")]
     public class Schedule
     {
         [Key]

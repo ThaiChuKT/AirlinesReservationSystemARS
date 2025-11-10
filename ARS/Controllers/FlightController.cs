@@ -43,12 +43,17 @@ namespace ARS.Controllers
 
         [HttpGet]
         [Route("api/Flight/{id}")]
-        public async Task<ActionResult<FlightResultDTO>> GetFlightById(int id, [FromQuery] DateTime departureDate)
+        public async Task<ActionResult<FlightResultDTO>> GetFlightById(int id, [FromQuery] DateTime? departureDate)
         {
             var flight = await _flightService.GetFlightByIdAsync(id, departureDate);
             
             if (flight == null)
-                return NotFound(new { message = "Không tìm thấy chuyến bay" });
+            {
+                if (departureDate.HasValue)
+                    return NotFound(new { message = $"Không tìm thấy chuyến bay với ID {id} vào ngày {departureDate.Value:yyyy-MM-dd}" });
+                else
+                    return NotFound(new { message = $"Không tìm thấy chuyến bay với ID {id}" });
+            }
 
             return Ok(flight);
         }
@@ -59,6 +64,23 @@ namespace ARS.Controllers
         {
             var cities = await _flightService.GetAllCitiesAsync();
             return Ok(cities);
+        }
+
+        [HttpGet]
+        [Route("api/Flight")]
+        public async Task<ActionResult<List<FlightResultDTO>>> GetAllFlights()
+        {
+            var flights = await _flightService.GetAllFlightsAsync();
+            
+            if (flights == null || !flights.Any())
+                return Ok(new { message = "Không có chuyến bay nào", flights = new List<FlightResultDTO>() });
+
+            return Ok(new 
+            { 
+                message = $"Tìm thấy {flights.Count} chuyến bay",
+                totalFlights = flights.Count,
+                flights = flights
+            });
         }
 
         [HttpPost]
