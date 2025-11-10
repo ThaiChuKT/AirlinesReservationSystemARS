@@ -111,39 +111,79 @@ namespace ARS.Services
             }
         }
 
-        public async Task<FlightResultDTO?> GetFlightByIdAsync(int flightId, DateTime departureDate)
+        public async Task<FlightResultDTO?> GetFlightByIdAsync(int flightId, DateTime? departureDate = null)
         {
-            var searchDate = DateOnly.FromDateTime(departureDate);
-
-            var result = await (from f in _context.Flights
-                               join s in _context.Schedules on f.FlightID equals s.FlightID
-                               join origin in _context.Cities on f.OriginCityID equals origin.CityID
-                               join dest in _context.Cities on f.DestinationCityID equals dest.CityID
-                               where f.FlightID == flightId 
-                                  && EF.Functions.DateDiffDay(s.Date, searchDate) == 0
-                               select new { Flight = f, Schedule = s, Origin = origin, Destination = dest })
-                               .FirstOrDefaultAsync();
-
-            if (result == null)
-                return null;
-
-            return new FlightResultDTO
+            if (departureDate.HasValue)
             {
-                FlightID = result.Flight.FlightID,
-                FlightNumber = result.Flight.FlightNumber,
-                OriginCity = result.Origin.CityName,
-                OriginAirport = result.Origin.AirportCode,
-                DestinationCity = result.Destination.CityName,
-                DestinationAirport = result.Destination.AirportCode,
-                DepartureTime = result.Flight.DepartureTime,
-                ArrivalTime = result.Flight.ArrivalTime,
-                Duration = result.Flight.Duration,
-                AircraftType = result.Flight.AircraftType,
-                BaseFare = result.Flight.BaseFare,
-                AvailableSeats = result.Flight.TotalSeats,
-                ScheduleID = result.Schedule.ScheduleID,
-                DepartureDate = result.Schedule.Date.ToDateTime(TimeOnly.MinValue)
-            };
+                // Tìm kiếm với ngày cụ thể
+                var searchDate = DateOnly.FromDateTime(departureDate.Value);
+
+                var result = await (from f in _context.Flights
+                                   join s in _context.Schedules on f.FlightID equals s.FlightID
+                                   join origin in _context.Cities on f.OriginCityID equals origin.CityID
+                                   join dest in _context.Cities on f.DestinationCityID equals dest.CityID
+                                   where f.FlightID == flightId 
+                                      && EF.Functions.DateDiffDay(s.Date, searchDate) == 0
+                                   select new { Flight = f, Schedule = s, Origin = origin, Destination = dest })
+                                   .FirstOrDefaultAsync();
+
+                if (result == null)
+                    return null;
+
+                return new FlightResultDTO
+                {
+                    FlightID = result.Flight.FlightID,
+                    FlightNumber = result.Flight.FlightNumber,
+                    OriginCity = result.Origin.CityName,
+                    OriginAirport = result.Origin.AirportCode,
+                    DestinationCity = result.Destination.CityName,
+                    DestinationAirport = result.Destination.AirportCode,
+                    DepartureTime = result.Flight.DepartureTime,
+                    ArrivalTime = result.Flight.ArrivalTime,
+                    Duration = result.Flight.Duration,
+                    AircraftType = result.Flight.AircraftType,
+                    BaseFare = result.Flight.BaseFare,
+                    AvailableSeats = result.Flight.TotalSeats,
+                    ScheduleID = result.Schedule.ScheduleID,
+                    DepartureDate = result.Schedule.Date.ToDateTime(TimeOnly.MinValue)
+                };
+            }
+            else
+            {
+                // Tìm kiếm chỉ với FlightID, không quan tâm schedule
+                var flight = await _context.Flights
+                    .Include(f => f.OriginCity)
+                    .Include(f => f.DestinationCity)
+                    .Include(f => f.Schedules)
+                    .FirstOrDefaultAsync(f => f.FlightID == flightId);
+
+                if (flight == null)
+                    return null;
+
+                // Lấy schedule gần nhất hoặc schedule đầu tiên
+                var nearestSchedule = flight.Schedules
+                    .Where(s => s.Status == "Scheduled")
+                    .OrderBy(s => s.Date)
+                    .FirstOrDefault();
+
+                return new FlightResultDTO
+                {
+                    FlightID = flight.FlightID,
+                    FlightNumber = flight.FlightNumber,
+                    OriginCity = flight.OriginCity?.CityName ?? "",
+                    OriginAirport = flight.OriginCity?.AirportCode ?? "",
+                    DestinationCity = flight.DestinationCity?.CityName ?? "",
+                    DestinationAirport = flight.DestinationCity?.AirportCode ?? "",
+                    DepartureTime = flight.DepartureTime,
+                    ArrivalTime = flight.ArrivalTime,
+                    Duration = flight.Duration,
+                    AircraftType = flight.AircraftType,
+                    BaseFare = flight.BaseFare,
+                    AvailableSeats = flight.TotalSeats,
+                    ScheduleID = nearestSchedule?.ScheduleID ?? 0,
+                    DepartureDate = nearestSchedule?.Date.ToDateTime(TimeOnly.MinValue) ?? DateTime.MinValue
+                };
+            }
         }
 
         public async Task<List<CityDTO>> GetAllCitiesAsync()
@@ -158,6 +198,47 @@ namespace ARS.Services
                 })
                 .OrderBy(c => c.CityName)
                 .ToListAsync();
+        }
+
+        public async Task<List<FlightResultDTO>> GetAllFlightsAsync()
+        {
+            var flights = await _context.Flights
+                .Include(f => f.OriginCity)
+                .Include(f => f.DestinationCity)
+                .Include(f => f.Schedules.Where(s => s.Status == "Scheduled"))
+                .OrderBy(f => f.FlightNumber)
+                .ToListAsync();
+
+            var flightResults = new List<FlightResultDTO>();
+
+            foreach (var flight in flights)
+            {
+                // Lấy schedule gần nhất
+                var nearestSchedule = flight.Schedules
+                    .Where(s => s.Status == "Scheduled")
+                    .OrderBy(s => s.Date)
+                    .FirstOrDefault();
+
+                flightResults.Add(new FlightResultDTO
+                {
+                    FlightID = flight.FlightID,
+                    FlightNumber = flight.FlightNumber,
+                    OriginCity = flight.OriginCity?.CityName ?? "",
+                    OriginAirport = flight.OriginCity?.AirportCode ?? "",
+                    DestinationCity = flight.DestinationCity?.CityName ?? "",
+                    DestinationAirport = flight.DestinationCity?.AirportCode ?? "",
+                    DepartureTime = flight.DepartureTime,
+                    ArrivalTime = flight.ArrivalTime,
+                    Duration = flight.Duration,
+                    AircraftType = flight.AircraftType,
+                    BaseFare = flight.BaseFare,
+                    AvailableSeats = flight.TotalSeats,
+                    ScheduleID = nearestSchedule?.ScheduleID ?? 0,
+                    DepartureDate = nearestSchedule?.Date.ToDateTime(TimeOnly.MinValue) ?? DateTime.MinValue
+                });
+            }
+
+            return flightResults;
         }
 
         public async Task<decimal> CalculateTotalPriceAsync(int flightId, DateTime departureDate,

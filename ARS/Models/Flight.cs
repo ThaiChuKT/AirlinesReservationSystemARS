@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ARS.Models
 {
+    [Table("flights")]
     public class Flight
     {
         [Key]
