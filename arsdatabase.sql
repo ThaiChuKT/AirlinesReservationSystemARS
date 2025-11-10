@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 03, 2025 at 01:21 PM
+-- Generation Time: Nov 10, 2025 at 02:04 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -97,7 +97,8 @@ CREATE TABLE `aspnetuserroles` (
 --
 
 INSERT INTO `aspnetuserroles` (`UserId`, `RoleId`) VALUES
-(1, 2);
+(2, 2),
+(3, 1);
 
 -- --------------------------------------------------------
 
@@ -136,7 +137,8 @@ CREATE TABLE `aspnetusers` (
 --
 
 INSERT INTO `aspnetusers` (`Id`, `UserName`, `NormalizedUserName`, `Email`, `NormalizedEmail`, `EmailConfirmed`, `PasswordHash`, `SecurityStamp`, `ConcurrencyStamp`, `PhoneNumber`, `PhoneNumberConfirmed`, `TwoFactorEnabled`, `LockoutEnd`, `LockoutEnabled`, `AccessFailedCount`, `FirstName`, `LastName`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`) VALUES
-(1, 'scwar69@gmail.com', 'SCWAR69@GMAIL.COM', 'scwar69@gmail.com', 'SCWAR69@GMAIL.COM', 0, 'AQAAAAIAAYagAAAAEE1geISp6sQIZeqj04hXorx4o68DcKx+KExXpfnx88mwi1UwX/0Ovkj62fKNEBeUEw==', 'RY5ALWUZNK6GGKTWKDWHQAJRN4EQPP65', 'd70a74e8-e930-4f51-ae9c-bfd865fe7316', NULL, 0, 0, NULL, 1, 0, 'Shiro', 'White', '0825113336', '123 Street', 'M', 13, NULL, 0);
+(2, 'scwar69@gmail.com', 'SCWAR69@GMAIL.COM', 'scwar69@gmail.com', 'SCWAR69@GMAIL.COM', 0, 'AQAAAAIAAYagAAAAEB5/Y9Od68hwamt3/tKCVW9McdMMddgzlPOGk7QGA9PE+Xk0CgMAvcg9/V28lmdb0A==', '6BTE3LQIFCGP4NILR4LPBLK6CCKRF56P', 'b397762e-4abd-4723-b1d5-d65ea96883a8', NULL, 0, 0, NULL, 1, 0, 'Shiro', 'White', '0825113336', '123', 'M', 22, NULL, 0),
+(3, 'admin@example.com', 'ADMIN@EXAMPLE.COM', 'admin@example.com', 'ADMIN@EXAMPLE.COM', 1, 'AQAAAAIAAYagAAAAEG7ayN6WHIKXxH2OVQMIbshP8dMSAZKlGzXDapfaQg92/BjJUTZ/XdAZyX3n8adDKg==', 'WUT6GSOXAPRZKPFMCJWDHZHLGSIAMVKA', 'be9fc003-aa44-4dad-b56a-de7db00cb7d5', NULL, 0, 0, NULL, 1, 0, 'Admin', 'User', NULL, NULL, 'O', NULL, NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -202,7 +204,8 @@ CREATE TABLE `flights` (
 INSERT INTO `flights` (`FlightID`, `FlightNumber`, `OriginCityID`, `DestinationCityID`, `DepartureTime`, `ArrivalTime`, `Duration`, `AircraftType`, `TotalSeats`, `BaseFare`, `PolicyID`) VALUES
 (100, 'ARS100', 1, 2, '2025-11-15 08:00:00.000000', '2025-11-15 09:00:00.000000', 60, 'A320', 150, 50.00, 2),
 (101, 'ARS200', 1, 3, '2025-11-16 10:30:00.000000', '2025-11-16 18:00:00.000000', 450, 'B787', 300, 320.00, 3),
-(102, 'ARS300', 2, 4, '2025-11-17 14:00:00.000000', '2025-11-17 16:30:00.000000', 150, 'A321', 180, 120.00, 2);
+(102, 'ARS300', 2, 4, '2025-11-17 14:00:00.000000', '2025-11-17 16:30:00.000000', 150, 'A321', 180, 120.00, 2),
+(106, 'SHR800', 5, 3, '2025-11-10 19:48:00.000000', '2025-11-10 19:48:00.000000', 80, 'F22', 2, 800.00, 2);
 
 -- --------------------------------------------------------
 
@@ -257,6 +260,14 @@ CREATE TABLE `refunds` (
   `RefundPercentage` decimal(5,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `refunds`
+--
+
+INSERT INTO `refunds` (`RefundID`, `ReservationID`, `RefundAmount`, `RefundDate`, `RefundPercentage`) VALUES
+(1, 4, 0.00, '2025-11-10 18:24:39.365331', 0.00),
+(2, 5, 0.00, '2025-11-10 19:11:15.634804', 0.00);
+
 -- --------------------------------------------------------
 
 --
@@ -284,7 +295,8 @@ CREATE TABLE `reservations` (
 --
 
 INSERT INTO `reservations` (`ReservationID`, `UserID`, `FlightID`, `ScheduleID`, `BookingDate`, `TravelDate`, `Status`, `NumAdults`, `NumChildren`, `NumSeniors`, `Class`, `ConfirmationNumber`, `BlockingNumber`) VALUES
-(1, 1, 100, 1000, '2025-11-03', '2025-11-15', 'Pending', 1, 0, 0, 'Economy', 'ARS202511031907405640', 'BLK20251103190740');
+(4, 2, 102, 1002, '2025-11-10', '2025-11-17', 'Cancelled', 1, 0, 0, 'Economy', 'ARS202511101819264173', 'BLK20251110181926'),
+(5, 2, 101, 1001, '2025-11-10', '2025-11-16', 'Cancelled', 1, 0, 0, 'Economy', 'ARS202511101911033418', 'BLK20251110191103');
 
 -- --------------------------------------------------------
 
@@ -307,7 +319,8 @@ CREATE TABLE `schedules` (
 INSERT INTO `schedules` (`ScheduleID`, `FlightID`, `Date`, `Status`, `CityID`) VALUES
 (1000, 100, '2025-11-15', 'Scheduled', 2),
 (1001, 101, '2025-11-16', 'Scheduled', 3),
-(1002, 102, '2025-11-17', 'Scheduled', 4);
+(1002, 102, '2025-11-17', 'Scheduled', 4),
+(1003, 106, '2025-11-10', 'Scheduled', NULL);
 
 -- --------------------------------------------------------
 
@@ -335,7 +348,8 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`UserID`, `FirstName`, `LastName`, `Email`, `Password`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`, `Role`) VALUES
-(1, 'Admin', 'User', 'admin@ars.com', 'Admin@123', NULL, NULL, 'M', NULL, NULL, 0, 'Admin');
+(1, 'Admin', 'User', 'admin@ars.com', 'Admin@123', NULL, NULL, 'M', NULL, NULL, 0, 'Admin'),
+(2, 'Shiro', 'White', 'scwar69@gmail.com', '', '0825113336', '123', 'M', 22, NULL, 0, 'Customer');
 
 -- --------------------------------------------------------
 
@@ -504,7 +518,7 @@ ALTER TABLE `aspnetuserclaims`
 -- AUTO_INCREMENT for table `aspnetusers`
 --
 ALTER TABLE `aspnetusers`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `cities`
@@ -516,7 +530,7 @@ ALTER TABLE `cities`
 -- AUTO_INCREMENT for table `flights`
 --
 ALTER TABLE `flights`
-  MODIFY `FlightID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=103;
+  MODIFY `FlightID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=107;
 
 --
 -- AUTO_INCREMENT for table `payments`
@@ -534,25 +548,25 @@ ALTER TABLE `pricingpolicies`
 -- AUTO_INCREMENT for table `refunds`
 --
 ALTER TABLE `refunds`
-  MODIFY `RefundID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `RefundID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `reservations`
 --
 ALTER TABLE `reservations`
-  MODIFY `ReservationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `ReservationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `ScheduleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1003;
+  MODIFY `ScheduleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1004;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables
