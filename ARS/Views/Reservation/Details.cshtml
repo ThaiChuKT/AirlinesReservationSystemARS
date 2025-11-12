@@ -143,7 +143,7 @@
                                 {
                                     <tr>
                                         <td>@payment.PaymentDate.ToString("MMM dd, yyyy")</td>
-                                        <td>₱@payment.Amount.ToString("N2")</td>
+                                        <td>$@payment.Amount.ToString("N2")</td>
                                         <td>@payment.PaymentMethod</td>
                                         <td><span class="badge bg-@(payment.TransactionStatus == "Completed" ? "success" : "warning")">@payment.TransactionStatus</span></td>
                                         <td>@payment.TransactionRefNo</td>

@@ -20,7 +20,7 @@
                             <small class="text-muted">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm") - @flight.ArrivalTime.ToString("HH:mm")</small>
                         </div>
                         <div class="col-md-4 text-end">
-                            <h4 class="text-success">₱@flight.FinalPrice.ToString("N2")</h4>
+                            <h4 class="text-success">$@flight.FinalPrice.ToString("N2")</h4>
                             <p class="text-muted small">@flight.AvailableSeats seats available</p>
                             <a asp-action="ConfirmReschedule" asp-route-reservationId="@Model.Reservation.ReservationID" asp-route-flightId="@flight.FlightID" asp-route-scheduleId="@flight.ScheduleID" asp-route-newDate="@Model.NewDate" class="btn btn-primary">Select</a>
                         </div>

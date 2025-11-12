@@ -10,16 +10,16 @@
         <div class="card-body">
             <p><strong>New Flight:</strong> @Model.NewFlight?.FlightNumber</p>
             <p><strong>New Date:</strong> @Model.NewDate.ToString("MMMM dd, yyyy")</p>
-            <p><strong>New Total:</strong> ₱@Model.NewTotal.ToString("N2")</p>
-            <p><strong>Amount Already Paid:</strong> ₱@Model.TotalPaid.ToString("N2")</p>
+            <p><strong>New Total:</strong> $@Model.NewTotal.ToString("N2")</p>
+            <p><strong>Amount Already Paid:</strong> $@Model.TotalPaid.ToString("N2")</p>
 
             @if (Model.Difference > 0)
             {
-                <div class="alert alert-warning">Additional payment required: ₱@Model.Difference.ToString("N2")</div>
+                <div class="alert alert-warning">Additional payment required: $@Model.Difference.ToString("N2")</div>
             }
             else if (Model.Difference < 0)
             {
-                <div class="alert alert-success">A refund of ₱@Math.Abs(Model.Difference).ToString("N2") will be issued.</div>
+                <div class="alert alert-success">A refund of $@Math.Abs(Model.Difference).ToString("N2") will be issued.</div>
             }
             else
             {

@@ -146,7 +146,7 @@ namespace ARS.Controllers
             _context.Refunds.Add(refund);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = refundAmount > 0 ? $"Reservation cancelled. A refund of ₱{refundAmount:N2} has been processed." : "Reservation cancelled. No refund is due based on the cancellation policy.";
+            TempData["SuccessMessage"] = refundAmount > 0 ? $"Reservation cancelled. A refund of ${refundAmount:N2} has been processed." : "Reservation cancelled. No refund is due based on the cancellation policy.";
 
             return RedirectToAction("Details", "Reservation", new { id = reservationId });
         }

@@ -525,9 +525,9 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = difference > 0
-                ? $"Reservation updated. An additional payment of ₱{difference:N2} is required to complete the reschedule."
+                ? $"Reservation updated. An additional payment of ${difference:N2} is required to complete the reschedule."
                 : difference < 0
-                    ? $"Reservation updated. A refund of ₱{Math.Abs(difference):N2} will be processed."
+                    ? $"Reservation updated. A refund of ${Math.Abs(difference):N2} will be processed."
                     : "Reservation updated. No price difference.";
 
             return RedirectToAction("Details", new { id = reservationId });
