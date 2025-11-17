@@ -140,6 +140,51 @@ namespace ARS.Controllers
                 BlockingNumber = GenerateBlockingNumber()
             };
 
+            // If the client selected a persisted seat id, validate and reserve it
+            if (model.SelectedSeatId.HasValue)
+            {
+                // load flight to validate seat layout ownership
+                var flight = await _context.Flights.FindAsync(model.FlightID);
+                if (flight == null)
+                {
+                    ModelState.AddModelError(string.Empty, "Flight not found.");
+                    return View(model);
+                }
+
+                var seat = await _context.Seats.FindAsync(model.SelectedSeatId.Value);
+                if (seat == null)
+                {
+                    ModelState.AddModelError("SelectedSeat", "Selected seat not found.");
+                    return View(model);
+                }
+
+                // Ensure the seat belongs to the flight's seat layout (if defined)
+                if (flight.SeatLayoutId.HasValue && seat.SeatLayoutId != flight.SeatLayoutId)
+                {
+                    ModelState.AddModelError("SelectedSeat", "Selected seat is not valid for this flight.");
+                    return View(model);
+                }
+
+                // Check if the seat is already taken for this schedule (excluding cancelled)
+                var seatTaken = await _context.Reservations
+                    .AnyAsync(r => r.ScheduleID == schedule.ScheduleID && r.SeatId == seat.SeatId && r.Status != "Cancelled");
+
+                if (seatTaken)
+                {
+                    ModelState.AddModelError("SelectedSeat", "That seat has just been booked by someone else. Please choose a different seat.");
+                    return View(model);
+                }
+
+                reservation.SeatId = seat.SeatId;
+                reservation.SeatLabel = seat.Label;
+            }
+
+            // Fallback: if only a label was provided (legacy), store it
+            else if (!string.IsNullOrEmpty(model.SelectedSeat))
+            {
+                reservation.SeatLabel = model.SelectedSeat;
+            }
+
             _context.Reservations.Add(reservation);
             // Ensure a legacy Users row exists for compatibility with existing FK in the database.
             // Some databases have both AspNetUsers (Identity) and a legacy Users table. The Reservations
@@ -162,6 +207,12 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
             }
 
             await _context.SaveChangesAsync();
+
+            // Preserve selected seat (if provided) so it can be shown on the confirmation page.
+            if (!string.IsNullOrEmpty(model.SelectedSeat))
+            {
+                TempData["SelectedSeat"] = model.SelectedSeat;
+            }
 
             return RedirectToAction(nameof(Confirmation), new { id = reservation.ReservationID });
         }
@@ -189,6 +240,118 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
             }
 
             return View(reservation);
+        }
+
+        // GET: Reservation/GetSeatMap?flightId=1&travelDate=2025-11-16
+        [HttpGet]
+        public async Task<IActionResult> GetSeatMap(int flightId, DateOnly travelDate)
+        {
+            var flight = await _context.Flights
+                .FirstOrDefaultAsync(f => f.FlightID == flightId);
+
+            if (flight == null) return NotFound();
+
+            // If the flight references a SeatLayout, use the persisted seats
+            if (flight.SeatLayoutId.HasValue)
+            {
+                var seats = await _context.Seats
+                    .Where(s => s.SeatLayoutId == flight.SeatLayoutId.Value)
+                    .OrderBy(s => s.RowNumber)
+                    .ThenBy(s => s.Column)
+                    .ToListAsync();
+
+                // find schedule for the date (if exists)
+                var schedule = await _context.Schedules.FirstOrDefaultAsync(s => s.FlightID == flightId && s.Date == travelDate);
+                var reservedIds = new HashSet<int>();
+                if (schedule != null)
+                {
+                    reservedIds = await _context.Reservations
+                        .Where(r => r.ScheduleID == schedule.ScheduleID && r.Status != "Cancelled" && r.SeatId != null)
+                        .Select(r => r.SeatId!.Value)
+                        .ToHashSetAsync();
+                }
+
+                var rowsResult = seats
+                    .GroupBy(s => s.RowNumber)
+                    .OrderBy(g => g.Key)
+                    .Select(g => new
+                    {
+                        row = g.Key,
+                        seats = g.Select(s => new
+                        {
+                            id = s.SeatId,
+                            label = s.Label,
+                            col = s.Column,
+                            row = s.RowNumber,
+                            cabin = s.CabinClass.ToString(),
+                            available = !reservedIds.Contains(s.SeatId)
+                        }).ToList()
+                    }).ToList();
+
+                // seats per row is variable; include max count
+                var seatsPerRow = seats.GroupBy(s => s.RowNumber).Select(g => g.Count()).DefaultIfEmpty(0).Max();
+                var rows = rowsResult.Count;
+                return Json(new { rows, seatsPerRow, rowsResult });
+            }
+
+            // fallback to the legacy heuristic layout if no SeatLayout is configured
+            var totalSeats = flight.TotalSeats;
+
+            // Improved layout: 6 seats per row (A-F) with an aisle between C and D.
+            var seatsPerRowLegacy = 6;
+            var rowsLegacy = (int)Math.Ceiling(totalSeats / (double)seatsPerRowLegacy);
+
+            // Number of booked seats for that date (not including cancelled)
+            var bookedCount = _context.Reservations.Where(r => r.FlightID == flightId && r.TravelDate == travelDate && r.Status != "Cancelled").Count();
+
+            // Determine cabin splits: first class (front few rows), business (next), economy (rest)
+            var firstRows = Math.Max(1, rowsLegacy / 10); // ~10% front
+            var businessRows = Math.Max(1, rowsLegacy / 5); // ~20% next
+
+            var letters = new[] { 'A', 'B', 'C', 'D', 'E', 'F' };
+            var allSeats = new List<(string Id, int Row, string Col)>();
+            var idx = 0;
+            for (var r = 1; r <= rowsLegacy; r++)
+            {
+                for (var c = 0; c < seatsPerRowLegacy; c++)
+                {
+                    if (idx >= totalSeats) break;
+                    var label = $"{r}{letters[c]}";
+                    allSeats.Add((label, r, letters[c].ToString()));
+                    idx++;
+                }
+            }
+
+            // Mark occupied seats starting from the back of the plane (rear-filled)
+            var occupiedSet = new HashSet<string>();
+            for (int i = 0; i < bookedCount && i < allSeats.Count; i++)
+            {
+                var s = allSeats[allSeats.Count - 1 - i];
+                occupiedSet.Add(s.Id);
+            }
+
+            var rowsResultLegacy = new List<object>();
+            foreach (var group in allSeats.GroupBy(s => s.Row).OrderBy(g => g.Key))
+            {
+                var rowNum = group.Key;
+                string cabin = "Economy";
+                if (rowNum <= firstRows) cabin = "First";
+                else if (rowNum <= firstRows + businessRows) cabin = "Business";
+
+                var seatObjs = group.Select(s => new
+                {
+                    id = s.Id,
+                    label = s.Id,
+                    col = s.Col,
+                    row = s.Row,
+                    cabin,
+                    available = !occupiedSet.Contains(s.Id)
+                }).ToList();
+
+                rowsResultLegacy.Add(new { row = rowNum, seats = seatObjs });
+            }
+
+            return Json(new { rows = rowsLegacy, seatsPerRow = seatsPerRowLegacy, rowsResult = rowsResultLegacy });
         }
 
         // GET: Reservation/MyReservations

@@ -75,16 +75,27 @@
                         <div class="row g-3 mt-2">
                             <div class="col-md-6">
                                 <label asp-for="Class" class="form-label"></label>
-                                <select asp-for="Class" class="form-select">
+                                <select asp-for="Class" class="form-select" id="ClassSelect" disabled>
                                     <option value="Economy">Economy</option>
                                     <option value="Business">Business</option>
                                     <option value="First">First Class</option>
                                 </select>
+                                <!-- Hidden input to actually post the class value because disabled inputs are not submitted -->
+                                <input type="hidden" id="ClassHidden" name="Class" />
                                 <span asp-validation-for="Class" class="text-danger"></span>
                             </div>
                         </div>
 
                         <div class="mt-4">
+                            <input type="hidden" asp-for="SelectedSeat" id="SelectedSeat" />
+
+                            <button type="button" class="btn btn-outline-secondary w-100 mb-2" id="btnToggleSeatMap">Select Seat</button>
+
+                            <div id="seatMapContainer" class="mb-3" style="display:none;">
+                                <div id="seatMap" class="border p-3" style="background:#fff; max-height:400px; overflow:auto"></div>
+                                <p class="small mt-2"><span class="badge bg-success">&nbsp;</span> Available &nbsp; <span class="badge bg-danger">&nbsp;</span> Unavailable</p>
+                            </div>
+
                             <button type="submit" class="btn btn-success btn-lg w-100">
                                 <i class="bi bi-check-circle"></i> Confirm Booking
                             </button>
@@ -141,3 +152,129 @@
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const btn = document.getElementById('btnToggleSeatMap');
+    const container = document.getElementById('seatMapContainer');
+    const seatMap = document.getElementById('seatMap');
+    const selectedSeatInput = document.getElementById('SelectedSeat');
+
+    btn.addEventListener('click', async () => {
+        if (container.style.display === 'none') {
+            // fetch seat map
+            const flightId = document.querySelector('input[name="FlightID"]').value;
+            let travelDateRaw = document.querySelector('input[name="TravelDate"]').value;
+            // normalize travel date to yyyy-MM-dd if possible
+            try {
+                if (travelDateRaw.includes('/')) {
+                    const parts = travelDateRaw.split('/').map(p => p.trim());
+                    if (parts.length === 3) travelDateRaw = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+                }
+            } catch (e) { /* ignore and send raw */ }
+
+            const resp = await fetch(`/Reservation/GetSeatMap?flightId=${encodeURIComponent(flightId)}&travelDate=${encodeURIComponent(travelDateRaw)}`);
+            const data = await resp.json();
+
+            // render airplane-style rows
+            seatMap.innerHTML = '';
+            const seatGrid = document.createElement('div');
+            seatGrid.className = 'seatmap-airplane';
+
+            // determine class ranges: rows 1-10 First, 11-30 Business, 31+ Economy
+            const firstEnd = 10;
+            const businessEnd = 30;
+
+            data.rowsResult.forEach(r => {
+                // if this row should show a class header, insert it
+                const rowNum = Number(r.row);
+                if (!isNaN(rowNum)) {
+                    if (rowNum === 1) {
+                        const hdr = document.createElement('div');
+                        hdr.className = 'seat-class-header mb-2';
+                        hdr.textContent = 'First Class';
+                        seatGrid.appendChild(hdr);
+                    } else if (rowNum === firstEnd + 1) {
+                        const hdr = document.createElement('div');
+                        hdr.className = 'seat-class-header mb-2';
+                        hdr.textContent = 'Business Class';
+                        seatGrid.appendChild(hdr);
+                    } else if (rowNum === businessEnd + 1) {
+                        const hdr = document.createElement('div');
+                        hdr.className = 'seat-class-header mb-2';
+                        hdr.textContent = 'Economy Class';
+                        seatGrid.appendChild(hdr);
+                    }
+                }
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'seat-row d-flex align-items-center mb-2';
+
+                const rowLabel = document.createElement('div');
+                rowLabel.className = 'seat-row-label me-3 fw-bold';
+                rowLabel.textContent = r.row;
+                rowDiv.appendChild(rowLabel);
+
+                // wrap seats in a container so we can center them independent of the label width
+                const seatsContainer = document.createElement('div');
+                seatsContainer.className = 'seat-buttons d-flex flex-wrap align-items-center justify-content-center';
+
+                r.seats.forEach(s => {
+                    const seatBtn = document.createElement('button');
+                    seatBtn.type = 'button';
+                    seatBtn.className = 'btn btn-sm me-1';
+                    seatBtn.style.width = '56px';
+                    seatBtn.textContent = s.label;
+                    seatBtn.title = `${s.label} - ${s.cabin}`;
+                    if (s.available) {
+                        seatBtn.classList.add('btn-success');
+                        seatBtn.addEventListener('click', () => {
+                            document.querySelectorAll('#seatMap button').forEach(b => b.classList.remove('border-primary'));
+                            seatBtn.classList.add('border','border-primary');
+                            selectedSeatInput.value = s.label;
+
+                            // set class based on row number
+                            const numericRow = parseInt(s.label, 10);
+                            let seatClass = 'Economy';
+                            if (!isNaN(numericRow)) {
+                                if (numericRow <= firstEnd) seatClass = 'First';
+                                else if (numericRow <= businessEnd) seatClass = 'Business';
+                                else seatClass = 'Economy';
+                            }
+                            // set visible select (disabled) and hidden input used for POST
+                            const classSelect = document.getElementById('ClassSelect');
+                            const classHidden = document.getElementById('ClassHidden');
+                            if (classSelect) {
+                                classSelect.value = seatClass;
+                            }
+                            if (classHidden) {
+                                classHidden.value = seatClass;
+                            }
+                        });
+                    } else {
+                        seatBtn.classList.add('btn-danger');
+                        seatBtn.disabled = true;
+                    }
+                    seatsContainer.appendChild(seatBtn);
+
+                    // insert aisle between C and D
+                    if (s.col === 'C') {
+                        const aisle = document.createElement('div');
+                        aisle.className = 'seat-aisle';
+                        seatsContainer.appendChild(aisle);
+                    }
+                });
+
+                rowDiv.appendChild(seatsContainer);
+                seatGrid.appendChild(rowDiv);
+            });
+
+            seatMap.appendChild(seatGrid);
+            container.style.display = '';
+            btn.textContent = 'Hide Seat Map';
+        } else {
+            container.style.display = 'none';
+            btn.textContent = 'Select Seat';
+        }
+    });
+});
+</script>

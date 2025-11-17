@@ -29,3 +29,50 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+/* Seat map specific styles */
+.seatmap-airplane {
+  width: 100%;
+}
+.seat-row {
+  display: flex;
+  align-items: center;
+}
+.seat-row-label {
+  min-width: 36px; /* reserve space for row numbers (including two-digit) */
+  text-align: right;
+}
+.seat-buttons {
+  flex: 1 1 auto; /* take remaining space */
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center; /* center seats horizontally */
+  gap: 6px;
+}
+.seat-buttons .btn {
+  flex: 0 0 auto;
+}
+.seat-aisle {
+  width: 24px;
+  flex: 0 0 24px;
+}
+
+/* make seat labels slightly smaller on narrow screens */
+@media (max-width: 576px) {
+  .seat-buttons .btn {
+    width: 44px !important;
+    font-size: 12px;
+    padding: .25rem .35rem;
+  }
+}
+
+/* header that separates classes in seat map */
+.seat-class-header {
+  width: 100%;
+  text-align: center;
+  font-weight: 600;
+  color: #444;
+  background: rgba(0,0,0,0.03);
+  padding: 6px 0;
+  border-radius: 4px;
+}

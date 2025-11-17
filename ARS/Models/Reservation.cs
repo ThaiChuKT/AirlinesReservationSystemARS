@@ -48,6 +48,14 @@ namespace ARS.Models
         [StringLength(50)]
         public string? BlockingNumber { get; set; }
 
+    // Seat assignment (optional)
+    public int? SeatId { get; set; }
+    public virtual Seat? Seat { get; set; }
+
+    // Legacy label for compatibility (e.g. "12A")
+    [StringLength(10)]
+    public string? SeatLabel { get; set; }
+
         // Navigation properties
         public virtual User? User { get; set; }
         public virtual Flight? Flight { get; set; }

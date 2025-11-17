@@ -19,6 +19,8 @@ namespace ARS.Data
         public DbSet<Flight> Flights { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Reservation> Reservations { get; set; }
+    public DbSet<SeatLayout> SeatLayouts { get; set; }
+    public DbSet<Seat> Seats { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Refund> Refunds { get; set; }
 
@@ -53,6 +55,20 @@ namespace ARS.Data
                 .HasForeignKey(s => s.FlightID)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Configure Flight - SeatLayout relationship
+            modelBuilder.Entity<Flight>()
+                .HasOne(f => f.SeatLayout)
+                .WithMany()
+                .HasForeignKey(f => f.SeatLayoutId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure SeatLayout - Seat relationship
+            modelBuilder.Entity<Seat>()
+                .HasOne(s => s.SeatLayout)
+                .WithMany(sl => sl.Seats)
+                .HasForeignKey(s => s.SeatLayoutId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Configure Schedule - City relationship (optional)
             modelBuilder.Entity<Schedule>()
                 .HasOne(s => s.City)
@@ -81,6 +97,13 @@ namespace ARS.Data
                 .HasForeignKey(r => r.ScheduleID)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Reservation - Seat relationship
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Seat)
+                .WithMany()
+                .HasForeignKey(r => r.SeatId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Configure Payment - Reservation relationship
             modelBuilder.Entity<Payment>()
                 .HasOne(p => p.Reservation)
@@ -107,6 +130,12 @@ namespace ARS.Data
             modelBuilder.Entity<Reservation>()
                 .HasIndex(r => r.ConfirmationNumber)
                 .IsUnique();
+
+            // Ensure a seat cannot be double-booked for the same schedule
+            modelBuilder.Entity<Reservation>()
+                .HasIndex(r => new { r.ScheduleID, r.SeatId })
+                .IsUnique()
+                .HasDatabaseName("IX_Reservation_Schedule_Seat_Unique");
 
             modelBuilder.Entity<City>()
                 .HasIndex(c => c.AirportCode)

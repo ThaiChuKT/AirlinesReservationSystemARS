@@ -49,5 +49,10 @@ namespace ARS.ViewModels
         [Phone]
         [Display(Name = "Phone Number")]
         public string? Phone { get; set; }
+
+        // Optional seat selection (e.g. 12A)
+        public string? SelectedSeat { get; set; }
+        // If using persistent seats, SelectedSeatId contains the Seat.SeatId
+        public int? SelectedSeatId { get; set; }
     }
 }

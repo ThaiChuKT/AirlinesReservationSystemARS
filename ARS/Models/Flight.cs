@@ -40,6 +40,10 @@ namespace ARS.Models
         [Column(TypeName = "decimal(10,2)")]
         public decimal BaseFare { get; set; }
 
+    // Optional link to a seat layout (for aircraft-specific seat maps)
+    public int? SeatLayoutId { get; set; }
+    public virtual SeatLayout? SeatLayout { get; set; }
+
         // Foreign key to PricingPolicy (optional)
         public int? PolicyID { get; set; }
 
