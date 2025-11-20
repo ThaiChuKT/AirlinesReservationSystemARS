@@ -11,7 +11,7 @@
                     <h2 class="mb-0"><i class="bi bi-airplane"></i> Search Flights</h2>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="Search" method="post">
+                    <form asp-action="Index" method="post">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                         
                         <div class="row g-3">
@@ -70,6 +70,77 @@
             </div>
         </div>
     </div>
+
+    @if (ViewBag.SearchResults != null)
+    {
+        var results = (ARS.Models.DTO.FlightSearchResponseDTO)ViewBag.SearchResults;
+        
+        <div class="row mt-5">
+            <div class="col-md-12">
+                <h3 class="mb-4">
+                    <i class="bi bi-airplane-engines"></i> 
+                    @(results.Success ? "Kết quả tìm kiếm" : "Thông báo")
+                </h3>
+
+                @if (results.Success && results.Flights.Any())
+                {
+                    <div class="alert alert-success mb-4">
+                        <i class="bi bi-check-circle"></i> @results.Message
+                    </div>
+
+                    @foreach (var flight in results.Flights)
+                    {
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <h5 class="text-primary mb-1">@flight.FlightNumber</h5>
+                                        <small class="text-muted">@flight.AircraftType</small>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-0">@flight.OriginCity (@flight.OriginAirport)</h6>
+                                                <small class="text-muted">@flight.DepartureTime.ToString("dd/MM HH:mm")</small>
+                                            </div>
+                                            <div class="text-center px-3">
+                                                <i class="bi bi-arrow-right"></i>
+                                                <br>
+                                                <small>@(flight.Duration / 60)h @(flight.Duration % 60)m</small>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">@flight.DestinationCity (@flight.DestinationAirport)</h6>
+                                                <small class="text-muted">@flight.ArrivalTime.ToString("dd/MM HH:mm")</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <h4 class="text-success mb-2">@flight.TotalPrice.ToString("N0") VNĐ</h4>
+                                        <small class="text-muted d-block mb-2">Còn @flight.AvailableSeats ghế</small>
+                                        <a asp-controller="Reservation" asp-action="Create" 
+                                           asp-route-flightId="@flight.FlightID"
+                                           asp-route-scheduleId="@flight.ScheduleID"
+                                           asp-route-travelDate="@flight.DepartureDate.ToString("yyyy-MM-dd")"
+                                           asp-route-numAdults="@Model.Passengers"
+                                           asp-route-classType="@Model.Class"
+                                           class="btn btn-primary">
+                                            <i class="bi bi-cart-plus"></i> Đặt vé
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> @results.Message
+                    </div>
+                }
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {
