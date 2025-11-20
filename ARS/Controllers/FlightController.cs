@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using ARS.Models.DTO;
 using ARS.Services;
+using ARS.ViewModels;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ARS.Controllers
 {
@@ -13,16 +15,46 @@ namespace ARS.Controllers
             _flightService = flightService;
         }
 
-        // MVC View - Display search form
         [HttpGet]
-        public async Task<IActionResult> Search()
+        public async Task<IActionResult> Index()
         {
             var cities = await _flightService.GetAllCitiesAsync();
-            ViewBag.Cities = cities;
+            ViewBag.Cities = new SelectList(cities, "CityID", "CityName");
             return View();
         }
 
-        // API Endpoints
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Index(FlightSearchViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                var cities = await _flightService.GetAllCitiesAsync();
+                ViewBag.Cities = new SelectList(cities, "CityID", "CityName");
+                return View(model);
+            }
+
+            // Convert ViewModel to DTO for search
+            var searchDto = new FlightSearchDTO
+            {
+                OriginCityId = model.OriginCityID,
+                DestinationCityId = model.DestinationCityID,
+                DepartureDate = model.TravelDate.ToDateTime(TimeOnly.MinValue),
+                NumAdults = model.Passengers,
+                NumChildren = 0,
+                NumSeniors = 0,
+                Class = model.Class
+            };
+
+            var result = await _flightService.SearchFlightsAsync(searchDto);
+
+            // Return to view with results
+            ViewBag.SearchResults = result;
+            var cities2 = await _flightService.GetAllCitiesAsync();
+            ViewBag.Cities = new SelectList(cities2, "CityID", "CityName");
+            return View(model);
+        }
+
         [HttpPost]
         [Route("api/Flight/search")]
         public async Task<ActionResult<FlightSearchResponseDTO>> SearchFlights([FromBody] FlightSearchDTO searchDto)
