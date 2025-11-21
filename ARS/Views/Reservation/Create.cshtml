@@ -88,6 +88,7 @@
 
                         <div class="mt-4">
                             <input type="hidden" asp-for="SelectedSeat" id="SelectedSeat" />
+                            <input type="hidden" asp-for="SelectedSeatId" id="SelectedSeatId" />
 
                             <button type="button" class="btn btn-outline-secondary w-100 mb-2" id="btnToggleSeatMap">Select Seat</button>
 
@@ -231,6 +232,14 @@ document.addEventListener('DOMContentLoaded', function(){
                             document.querySelectorAll('#seatMap button').forEach(b => b.classList.remove('border-primary'));
                             seatBtn.classList.add('border','border-primary');
                             selectedSeatInput.value = s.label;
+                            // also set SelectedSeatId when the seat data includes a numeric id (persisted seats)
+                            const selectedSeatIdInput = document.getElementById('SelectedSeatId');
+                            if (selectedSeatIdInput) {
+                                // s.id may be a number (from persisted Seat) or a label string (legacy layout)
+                                const numeric = parseInt(s.id);
+                                if (!isNaN(numeric)) selectedSeatIdInput.value = numeric;
+                                else selectedSeatIdInput.value = '';
+                            }
 
                             // set class based on row number
                             const numericRow = parseInt(s.label, 10);
