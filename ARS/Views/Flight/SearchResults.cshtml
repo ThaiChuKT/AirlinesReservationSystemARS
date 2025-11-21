@@ -23,61 +23,208 @@
         </div>
     </div>
 
-    @if (Model.Flights.Any())
+    @{ 
+        bool anyFound = (Model.Flights != null && Model.Flights.Any()) || (Model.OutboundFlights != null && Model.OutboundFlights.Any()) || (Model.LegsResults != null && Model.LegsResults.Any(r=>r.Any()));
+    }
+
+    @if (anyFound)
     {
-        <h4 class="mb-3">Found @Model.Flights.Count flight(s)</h4>
-        
-        @foreach (var flight in Model.Flights)
+        <h4 class="mb-3">Search Results</h4>
+
+        @* One-way results *@
+        @if (Model.Flights != null && Model.Flights.Any())
         {
-            <div class="card mb-3 shadow-sm">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-3">
-                            <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
-                            <small class="text-muted">@flight.AircraftType</small>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="text-center">
-                                    <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
-                                    <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
-                                    <small class="text-muted">@flight.OriginCity</small>
-                                </div>
-                                
-                                <div class="text-center flex-grow-1 px-3">
-                                    <i class="bi bi-arrow-right text-muted"></i>
-                                    <p class="mb-0 text-muted">@flight.Duration min</p>
-                                </div>
-                                
-                                <div class="text-center">
-                                    <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
-                                    <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
-                                    <small class="text-muted">@flight.DestinationCity</small>
+            <h5 class="mb-2">One-way options</h5>
+            @foreach (var flight in Model.Flights)
+            {
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
+                                <small class="text-muted">@flight.AircraftType</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-center">
+                                        <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                        <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
+                                        <small class="text-muted">@flight.OriginCity</small>
+                                    </div>
+                                    <div class="text-center flex-grow-1 px-3">
+                                        <i class="bi bi-arrow-right text-muted"></i>
+                                        <p class="mb-0 text-muted">@flight.Duration min</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                        <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
+                                        <small class="text-muted">@flight.DestinationCity</small>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="col-md-3 text-end">
-                            <h3 class="text-success mb-1">$@flight.FinalPrice.ToString("N2")</h3>
-                            <p class="mb-2 text-muted small">
-                                <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
-                            </p>
-                            <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
-                            <a asp-controller="Reservation" 
-                               asp-action="Create" 
-                               asp-route-flightId="@flight.FlightID"
-                               asp-route-scheduleId="@flight.ScheduleID"
-                               asp-route-travelDate="@Model.SearchCriteria.TravelDate"
-                               asp-route-numAdults="@Model.SearchCriteria.Passengers"
-                               asp-route-class="@Model.SearchCriteria.Class"
-                               class="btn btn-primary w-100">
-                                Book Now
-                            </a>
+                            <div class="col-md-3 text-end">
+                                <h3 class="text-success mb-1">$@flight.FinalPrice.ToString("N2")</h3>
+                                <p class="mb-2 text-muted small">
+                                    <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
+                                </p>
+                                <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                                <a asp-controller="Reservation" 
+                                   asp-action="Create" 
+                                   asp-route-flightId="@flight.FlightID"
+                                   asp-route-scheduleId="@flight.ScheduleID"
+                                   asp-route-travelDate="@Model.SearchCriteria.TravelDate"
+                                   asp-route-numAdults="@Model.SearchCriteria.Passengers"
+                                   asp-route-class="@Model.SearchCriteria.Class"
+                                   class="btn btn-primary w-100">
+                                    Book Now
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            }
+        }
+
+        @* Round-trip results: show outbound + return lists *@
+        @if (Model.OutboundFlights != null && Model.OutboundFlights.Any())
+        {
+            <h5 class="mb-2">Outbound options</h5>
+            foreach (var flight in Model.OutboundFlights)
+            {
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
+                                <small class="text-muted">@flight.AircraftType</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-center">
+                                        <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                        <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
+                                        <small class="text-muted">@flight.OriginCity</small>
+                                    </div>
+                                    <div class="text-center flex-grow-1 px-3">
+                                        <i class="bi bi-arrow-right text-muted"></i>
+                                        <p class="mb-0 text-muted">@flight.Duration min</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                        <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
+                                        <small class="text-muted">@flight.DestinationCity</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <h3 class="text-success mb-1">$@flight.FinalPrice.ToString("N2")</h3>
+                                <p class="mb-2 text-muted small">
+                                    <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
+                                </p>
+                                <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+        @if (Model.ReturnFlights != null && Model.ReturnFlights.Any())
+        {
+            <h5 class="mb-2">Return options</h5>
+            foreach (var flight in Model.ReturnFlights)
+            {
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
+                                <small class="text-muted">@flight.AircraftType</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-center">
+                                        <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                        <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
+                                        <small class="text-muted">@flight.OriginCity</small>
+                                    </div>
+                                    <div class="text-center flex-grow-1 px-3">
+                                        <i class="bi bi-arrow-right text-muted"></i>
+                                        <p class="mb-0 text-muted">@flight.Duration min</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                        <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
+                                        <small class="text-muted">@flight.DestinationCity</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <h3 class="text-success mb-1">$@flight.FinalPrice.ToString("N2")</h3>
+                                <p class="mb-2 text-muted small">
+                                    <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
+                                </p>
+                                <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+        @* Multi-city legs results *@
+        @if (Model.LegsResults != null && Model.LegsResults.Any())
+        {
+            for (int i = 0; i < Model.LegsResults.Count; i++)
+            {
+                var legResults = Model.LegsResults[i];
+                <h5 class="mb-2">Leg @(i+1) options</h5>
+                if (legResults.Any())
+                {
+                    foreach (var flight in legResults)
+                    {
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <h5 class="text-primary fw-bold mb-0">@flight.FlightNumber</h5>
+                                        <small class="text-muted">@flight.AircraftType</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="text-center">
+                                                <h6 class="mb-0">@flight.DepartureTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                                <p class="mb-0 fw-bold">@flight.OriginAirportCode</p>
+                                                <small class="text-muted">@flight.OriginCity</small>
+                                            </div>
+                                            <div class="text-center flex-grow-1 px-3">
+                                                <i class="bi bi-arrow-right text-muted"></i>
+                                                <p class="mb-0 text-muted">@flight.Duration min</p>
+                                            </div>
+                                            <div class="text-center">
+                                                <h6 class="mb-0">@flight.ArrivalTime.ToString("MMM dd, yyyy HH:mm")</h6>
+                                                <p class="mb-0 fw-bold">@flight.DestinationAirportCode</p>
+                                                <small class="text-muted">@flight.DestinationCity</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <h3 class="text-success mb-1">$@flight.FinalPrice.ToString("N2")</h3>
+                                        <p class="mb-2 text-muted small">
+                                            <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
+                                        </p>
+                                        <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-warning">No options found for leg @(i+1).</div>
+                }
+            }
         }
     }
     else

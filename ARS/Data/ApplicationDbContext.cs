@@ -19,6 +19,7 @@ namespace ARS.Data
         public DbSet<Flight> Flights { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Reservation> Reservations { get; set; }
+        public DbSet<FlightSeat> FlightSeats { get; set; }
     public DbSet<SeatLayout> SeatLayouts { get; set; }
     public DbSet<Seat> Seats { get; set; }
         public DbSet<Payment> Payments { get; set; }
@@ -131,15 +132,44 @@ namespace ARS.Data
                 .HasIndex(r => r.ConfirmationNumber)
                 .IsUnique();
 
-            // Ensure a seat cannot be double-booked for the same schedule
+            // Ensure a flight-seat cannot be double-booked for the same schedule
             modelBuilder.Entity<Reservation>()
-                .HasIndex(r => new { r.ScheduleID, r.SeatId })
+                .HasOne(r => r.FlightSeat)
+                .WithMany()
+                .HasForeignKey(r => r.FlightSeatId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Reservation>()
+                .HasIndex(r => new { r.ScheduleID, r.FlightSeatId })
                 .IsUnique()
-                .HasDatabaseName("IX_Reservation_Schedule_Seat_Unique");
+                .HasDatabaseName("IX_Reservation_Schedule_FlightSeat_Unique");
 
             modelBuilder.Entity<City>()
                 .HasIndex(c => c.AirportCode)
                 .IsUnique();
+
+            // Configure FlightSeat - per-schedule seat status
+            modelBuilder.Entity<FlightSeat>(eb =>
+            {
+                eb.HasIndex(fs => new { fs.ScheduleId, fs.SeatId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_FlightSeats_Schedule_Seat_Unique");
+
+                eb.HasOne(fs => fs.Schedule)
+                    .WithMany(s => s.FlightSeats)
+                    .HasForeignKey(fs => fs.ScheduleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                eb.HasOne(fs => fs.AircraftSeat)
+                    .WithMany()
+                    .HasForeignKey(fs => fs.SeatId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                eb.HasOne(fs => fs.ReservedByReservation)
+                    .WithMany()
+                    .HasForeignKey(fs => fs.ReservedByReservationID)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
 
             // Seed initial data (optional)
             SeedData(modelBuilder);

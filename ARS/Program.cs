@@ -72,6 +72,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     )
 );
 
+// Register seat service
+builder.Services.AddScoped<ARS.Services.ISeatService, ARS.Services.SeatService>();
+
 // Register Identity with integer keys and EF stores
 builder.Services.AddIdentity<ARS.Models.User, IdentityRole<int>>(options =>
 {

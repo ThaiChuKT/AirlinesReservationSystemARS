@@ -134,31 +134,28 @@ namespace ARS.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Search(FlightSearchViewModel model)
         {
-            if (!ModelState.IsValid)
+            // For MultiCity searches we perform custom validation below, so skip the default ModelState blocking.
+            if (model.TripType != "MultiCity" && !ModelState.IsValid)
             {
                 await PopulateCityDropdowns();
                 return View("Index", model);
             }
+            var results = new FlightSearchResultViewModel { SearchCriteria = model };
 
-            // Get all flights matching the route
-            var flights = await _context.Flights
-                .Include(f => f.OriginCity)
-                .Include(f => f.DestinationCity)
-                .Include(f => f.Schedules)
-                .Include(f => f.Reservations)
-                .Where(f => f.OriginCityID == model.OriginCityID 
-                         && f.DestinationCityID == model.DestinationCityID)
-                .ToListAsync();
-
-            var results = new FlightSearchResultViewModel
+            // Helper to perform a single-leg search and return result list
+            async Task<List<FlightResultItem>> DoLegSearchAsync(int originCityId, int destinationCityId, DateOnly travelDate)
             {
-                SearchCriteria = model,
-                Flights = flights.Select(f =>
-                {
-                    // Find schedule for the travel date
-                    var schedule = f.Schedules.FirstOrDefault(s => s.Date == model.TravelDate);
+                var flights = await _context.Flights
+                    .Include(f => f.OriginCity)
+                    .Include(f => f.DestinationCity)
+                    .Include(f => f.Schedules)
+                    .Include(f => f.Reservations)
+                    .Where(f => f.OriginCityID == originCityId && f.DestinationCityID == destinationCityId)
+                    .ToListAsync();
 
-                    // Build effective departure/arrival datetimes using schedule date when available
+                return flights.Select(f =>
+                {
+                    var schedule = f.Schedules.FirstOrDefault(s => s.Date == travelDate);
                     var departure = schedule != null
                         ? schedule.Date.ToDateTime(TimeOnly.FromDateTime(f.DepartureTime))
                         : f.DepartureTime;
@@ -166,13 +163,11 @@ namespace ARS.Controllers
                         ? schedule.Date.ToDateTime(TimeOnly.FromDateTime(f.ArrivalTime))
                         : f.ArrivalTime;
 
-                    // Calculate available seats
                     var bookedSeats = f.Reservations
-                        .Where(r => r.TravelDate == model.TravelDate && r.Status != "Cancelled")
+                        .Where(r => r.TravelDate == travelDate && r.Status != "Cancelled")
                         .Sum(r => r.NumAdults + r.NumChildren + r.NumSeniors);
                     var availableSeats = f.TotalSeats - bookedSeats;
 
-                    // Calculate price based on class
                     var basePrice = f.BaseFare;
                     var classMultiplier = model.Class switch
                     {
@@ -180,9 +175,7 @@ namespace ARS.Controllers
                         "First" => 3.5m,
                         _ => 1.0m
                     };
-
-                    // Calculate price based on booking time (days before departure)
-                    var daysBeforeDeparture = (model.TravelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                    var daysBeforeDeparture = (travelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
                     var timingMultiplier = daysBeforeDeparture switch
                     {
                         >= 30 => 0.80m,
@@ -195,10 +188,10 @@ namespace ARS.Controllers
                     {
                         FlightID = f.FlightID,
                         FlightNumber = f.FlightNumber,
-                        OriginCity = f.OriginCity?.CityName ?? "",
-                        OriginAirportCode = f.OriginCity?.AirportCode ?? "",
-                        DestinationCity = f.DestinationCity?.CityName ?? "",
-                        DestinationAirportCode = f.DestinationCity?.AirportCode ?? "",
+                        OriginCity = f.OriginCity?.CityName ?? string.Empty,
+                        OriginAirportCode = f.OriginCity?.AirportCode ?? string.Empty,
+                        DestinationCity = f.DestinationCity?.CityName ?? string.Empty,
+                        DestinationAirportCode = f.DestinationCity?.AirportCode ?? string.Empty,
                         DepartureTime = departure,
                         ArrivalTime = arrival,
                         Duration = f.Duration,
@@ -211,8 +204,33 @@ namespace ARS.Controllers
                 })
                 .Where(fr => fr.AvailableSeats >= model.Passengers)
                 .OrderBy(fr => fr.DepartureTime)
-                .ToList()
-            };
+                .ToList();
+            }
+
+            if (model.TripType == "RoundTrip")
+            {
+                if (!model.ReturnDate.HasValue)
+                {
+                    ModelState.AddModelError("ReturnDate", "Please select a return date for round-trip searches.");
+                    await PopulateCityDropdowns();
+                    return View("Index", model);
+                }
+
+                results.OutboundFlights = await DoLegSearchAsync(model.OriginCityID, model.DestinationCityID, model.TravelDate);
+                results.ReturnFlights = await DoLegSearchAsync(model.DestinationCityID, model.OriginCityID, model.ReturnDate.Value);
+            }
+            else if (model.TripType == "MultiCity" && model.Legs != null && model.Legs.Any())
+            {
+                foreach (var leg in model.Legs)
+                {
+                    var legResults = await DoLegSearchAsync(leg.OriginCityID, leg.DestinationCityID, leg.TravelDate);
+                    results.LegsResults.Add(legResults);
+                }
+            }
+            else // OneWay
+            {
+                results.Flights = await DoLegSearchAsync(model.OriginCityID, model.DestinationCityID, model.TravelDate);
+            }
 
             return View("SearchResults", results);
         }

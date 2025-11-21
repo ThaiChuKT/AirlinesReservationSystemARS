@@ -19,4 +19,10 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.10" />
   </ItemGroup>
 
+  <!-- Exclude any tools or helper projects placed under Tools/ from being compiled into the web project -->
+  <ItemGroup>
+    <Compile Remove="Tools\**\*.cs" />
+    <None Remove="Tools\**\*" />
+  </ItemGroup>
+
 </Project>

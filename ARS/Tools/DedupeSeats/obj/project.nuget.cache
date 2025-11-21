@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "PQVYDwyYPA8=",
+  "success": true,
+  "projectFilePath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\DedupeSeats\\DedupeSeats.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Kruwul\\.nuget\\packages\\mysqlconnector\\2.2.4\\mysqlconnector.2.2.4.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.20\\microsoft.netcore.app.ref.8.0.20.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.20\\microsoft.windowsdesktop.app.ref.8.0.20.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.20\\microsoft.aspnetcore.app.ref.8.0.20.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.20\\microsoft.netcore.app.host.win-x64.8.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}

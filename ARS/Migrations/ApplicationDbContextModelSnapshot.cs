@@ -151,6 +151,48 @@ namespace ARS.Migrations.Seeds
                     b.ToTable("Flights");
                 });
 
+            modelBuilder.Entity("ARS.Models.FlightSeat", b =>
+                {
+                    b.Property<int>("FlightSeatId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("FlightSeatId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int?>("ReservedByReservationID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeatId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("FlightSeatId");
+
+                    b.HasIndex("ReservedByReservationID");
+
+                    b.HasIndex("SeatId");
+
+                    b.HasIndex("ScheduleId", "SeatId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_FlightSeats_Schedule_Seat_Unique");
+
+                    b.ToTable("FlightSeats");
+                });
+
             modelBuilder.Entity("ARS.Models.Payment", b =>
                 {
                     b.Property<int>("PaymentID")
@@ -298,6 +340,9 @@ namespace ARS.Migrations.Seeds
                     b.Property<int>("FlightID")
                         .HasColumnType("int");
 
+                    b.Property<int?>("FlightSeatId")
+                        .HasColumnType("int");
+
                     b.Property<int>("NumAdults")
                         .HasColumnType("int");
 
@@ -335,13 +380,15 @@ namespace ARS.Migrations.Seeds
 
                     b.HasIndex("FlightID");
 
+                    b.HasIndex("FlightSeatId");
+
                     b.HasIndex("SeatId");
 
                     b.HasIndex("UserID");
 
-                    b.HasIndex("ScheduleID", "SeatId")
+                    b.HasIndex("ScheduleID", "FlightSeatId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Reservation_Schedule_Seat_Unique");
+                        .HasDatabaseName("IX_Reservation_Schedule_FlightSeat_Unique");
 
                     b.ToTable("Reservations");
                 });
@@ -709,6 +756,32 @@ namespace ARS.Migrations.Seeds
                     b.Navigation("SeatLayout");
                 });
 
+            modelBuilder.Entity("ARS.Models.FlightSeat", b =>
+                {
+                    b.HasOne("ARS.Models.Reservation", "ReservedByReservation")
+                        .WithMany()
+                        .HasForeignKey("ReservedByReservationID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ARS.Models.Schedule", "Schedule")
+                        .WithMany("FlightSeats")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ARS.Models.Seat", "AircraftSeat")
+                        .WithMany()
+                        .HasForeignKey("SeatId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AircraftSeat");
+
+                    b.Navigation("ReservedByReservation");
+
+                    b.Navigation("Schedule");
+                });
+
             modelBuilder.Entity("ARS.Models.Payment", b =>
                 {
                     b.HasOne("ARS.Models.Reservation", "Reservation")
@@ -739,6 +812,11 @@ namespace ARS.Migrations.Seeds
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ARS.Models.FlightSeat", "FlightSeat")
+                        .WithMany()
+                        .HasForeignKey("FlightSeatId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ARS.Models.Schedule", "Schedule")
                         .WithMany("Reservations")
                         .HasForeignKey("ScheduleID")
@@ -757,6 +835,8 @@ namespace ARS.Migrations.Seeds
                         .IsRequired();
 
                     b.Navigation("Flight");
+
+                    b.Navigation("FlightSeat");
 
                     b.Navigation("Schedule");
 
@@ -875,6 +955,8 @@ namespace ARS.Migrations.Seeds
 
             modelBuilder.Entity("ARS.Models.Schedule", b =>
                 {
+                    b.Navigation("FlightSeats");
+
                     b.Navigation("Reservations");
                 });
 

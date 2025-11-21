@@ -52,6 +52,10 @@ namespace ARS.Models
     public int? SeatId { get; set; }
     public virtual Seat? Seat { get; set; }
 
+    // New: reference to the per-schedule FlightSeat
+    public int? FlightSeatId { get; set; }
+    public virtual FlightSeat? FlightSeat { get; set; }
+
     // Legacy label for compatibility (e.g. "12A")
     [StringLength(10)]
     public string? SeatLabel { get; set; }

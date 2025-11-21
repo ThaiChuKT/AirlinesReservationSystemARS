@@ -15,7 +15,24 @@
     }
     <div class="card shadow-sm mb-4">
         <div class="card-body bg-light">
-            <form asp-action="All" method="get" class="row g-3">
+            <form asp-action="All" method="get" id="flightSearchForm" class="row g-3">
+                <div class="col-12 mb-3">
+                    <label class="form-label fw-bold">Trip Type</label>
+                    <div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="TripType" id="tripOneWay" value="OneWay" checked />
+                            <label class="form-check-label" for="tripOneWay">One-way</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="TripType" id="tripRound" value="RoundTrip" />
+                            <label class="form-check-label" for="tripRound">Round-trip</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="TripType" id="tripMulti" value="MultiCity" />
+                            <label class="form-check-label" for="tripMulti">Multi-city</label>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold">From</label>
                     @{ var cities = (IEnumerable<SelectListItem>)ViewBag.Cities; }
@@ -51,6 +68,10 @@
                     <label class="form-label fw-bold">Travel Date</label>
                     <input type="date" name="TravelDate" class="form-control" value="@Model.SearchCriteria.TravelDate.ToString("yyyy-MM-dd")" />
                 </div>
+                <div class="col-md-4" id="returnDateGroup" style="display:none;">
+                    <label class="form-label fw-bold">Return Date</label>
+                    <input type="date" name="ReturnDate" class="form-control" value="@(Model.SearchCriteria.ReturnDate?.ToString("yyyy-MM-dd") ?? string.Empty)" />
+                </div>
 
                 <div class="col-md-3">
                     <label class="form-label fw-bold">Number of Passengers</label>
@@ -73,6 +94,14 @@
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-filter"></i> Apply Filters</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="multiCityContainer" style="display:none;" class="mt-3 container">
+        <label class="form-label fw-bold">Multi-city itinerary</label>
+        <div id="legsList" class="mb-2"></div>
+        <div class="mb-4">
+            <button type="button" class="btn btn-outline-primary" id="btnAddLeg">Add destination</button>
         </div>
     </div>
 
@@ -151,3 +180,91 @@
         </div>
     }
 </div>
+
+<script>
+    (function () {
+        function $(sel) { return document.querySelector(sel); }
+        function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+
+        var tripRadios = $all('input[name="TripType"]');
+        var returnGroup = document.getElementById('returnDateGroup');
+        var multiCityContainer = document.getElementById('multiCityContainer');
+        var legsList = document.getElementById('legsList');
+        var btnAddLeg = document.getElementById('btnAddLeg');
+
+        function getSelectedTripType() {
+            var r = tripRadios.find(function (el) { return el.checked; });
+            return r ? r.value : 'OneWay';
+        }
+
+        function toggleUI() {
+            var type = getSelectedTripType();
+            if (type === 'RoundTrip') {
+                returnGroup.style.display = '';
+            } else {
+                returnGroup.style.display = 'none';
+            }
+
+            if (type === 'MultiCity') {
+                multiCityContainer.style.display = '';
+                var travelInput = document.querySelector('input[name="TravelDate"]');
+                if (travelInput) travelInput.closest('.col-md-4').style.display = 'none';
+            } else {
+                multiCityContainer.style.display = 'none';
+                var travelInput = document.querySelector('input[name="TravelDate"]');
+                if (travelInput) travelInput.closest('.col-md-4').style.display = '';
+            }
+        }
+
+        tripRadios.forEach(function (r) { r.addEventListener('change', toggleUI); });
+        toggleUI();
+
+        var legTemplate = function (index) {
+            var cities = document.querySelectorAll('select[name="OriginCityID"] option');
+            var opts = '';
+            cities.forEach(function (o) { opts += '<option value="' + o.value + '">' + o.text + '</option>'; });
+            return '<div class="card mb-2" data-leg-index="' + index + '"><div class="card-body"><div class="row g-3 align-items-end"><div class="col-md-4"><label class="form-label">Origin</label><select name="Legs[' + index + '].OriginCityID" class="form-select">' + opts + '</select></div><div class="col-md-4"><label class="form-label">Destination</label><select name="Legs[' + index + '].DestinationCityID" class="form-select">' + opts + '</select></div><div class="col-md-3"><label class="form-label">Date</label><input name="Legs[' + index + '].TravelDate" type="date" class="form-control" /></div><div class="col-md-1 text-end"><button type="button" class="btn btn-link text-danger btnRemoveLeg">&times;</button></div></div></div></div>';
+        };
+
+        function reindexLegs() {
+            var cards = legsList.querySelectorAll('[data-leg-index]');
+            Array.from(cards).forEach(function (card, idx) {
+                card.setAttribute('data-leg-index', idx);
+                var inputs = card.querySelectorAll('select, input');
+                inputs.forEach(function (inp) {
+                    var name = inp.getAttribute('name');
+                    if (!name) return;
+                    var newName = name.replace(/Legs\[\d+\]/, 'Legs[' + idx + ']');
+                    inp.setAttribute('name', newName);
+                });
+            });
+        }
+
+        function addLeg() {
+            var idx = legsList.querySelectorAll('[data-leg-index]').length;
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = legTemplate(idx);
+            legsList.appendChild(wrapper.firstElementChild);
+            reindexLegs();
+            attachRemoveHandlers();
+        }
+
+        function attachRemoveHandlers() {
+            var removes = legsList.querySelectorAll('.btnRemoveLeg');
+            removes.forEach(function (btn) {
+                if (btn._attached) return;
+                btn._attached = true;
+                btn.addEventListener('click', function () {
+                    var card = btn.closest('[data-leg-index]');
+                    if (card) { card.remove(); reindexLegs(); }
+                });
+            });
+        }
+
+        btnAddLeg && btnAddLeg.addEventListener('click', addLeg);
+
+        // add two default legs when multi-city selected
+        tripRadios.forEach(function (r) { r.addEventListener('change', function () { if (getSelectedTripType() === 'MultiCity' && legsList.children.length === 0) { addLeg(); addLeg(); } }); });
+
+    })();
+</script>

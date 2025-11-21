@@ -26,5 +26,6 @@ namespace ARS.Models
         public virtual Flight? Flight { get; set; }
         public virtual City? City { get; set; }
         public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
+        public virtual ICollection<FlightSeat> FlightSeats { get; set; } = new List<FlightSeat>();
     }
 }

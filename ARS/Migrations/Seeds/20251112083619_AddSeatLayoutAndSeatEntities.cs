@@ -14,108 +14,138 @@ namespace ARS.Migrations.Seeds
             // NOTE: original index on ScheduleID is left intact to avoid dropping an index
             // that may be required by existing foreign key constraints in some deployments.
 
-            migrationBuilder.AddColumn<int>(
-                name: "SeatId",
-                table: "Reservations",
-                type: "int",
-                nullable: true);
+            // The following schema changes may already exist in some databases (e.g., applied manually or partially).
+            // Wrap operations in try/catch to make this migration idempotent for dev/test environments.
+            try
+            {
+                migrationBuilder.AddColumn<int>(
+                    name: "SeatId",
+                    table: "Reservations",
+                    type: "int",
+                    nullable: true);
+            }
+            catch { }
 
-            migrationBuilder.AddColumn<string>(
-                name: "SeatLabel",
-                table: "Reservations",
-                type: "varchar(10)",
-                maxLength: 10,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+            try
+            {
+                migrationBuilder.AddColumn<string>(
+                    name: "SeatLabel",
+                    table: "Reservations",
+                    type: "varchar(10)",
+                    maxLength: 10,
+                    nullable: true)
+                    .Annotation("MySql:CharSet", "utf8mb4");
+            }
+            catch { }
 
-            migrationBuilder.AddColumn<int>(
-                name: "SeatLayoutId",
-                table: "Flights",
-                type: "int",
-                nullable: true);
+            try
+            {
+                migrationBuilder.AddColumn<int>(
+                    name: "SeatLayoutId",
+                    table: "Flights",
+                    type: "int",
+                    nullable: true);
+            }
+            catch { }
 
-            migrationBuilder.CreateTable(
-                name: "SeatLayouts",
-                columns: table => new
-                {
-                    SeatLayoutId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    MetadataJson = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SeatLayouts", x => x.SeatLayoutId);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            try
+            {
+                migrationBuilder.CreateTable(
+                    name: "SeatLayouts",
+                    columns: table => new
+                    {
+                        SeatLayoutId = table.Column<int>(type: "int", nullable: false)
+                            .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                        Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        MetadataJson = table.Column<string>(type: "longtext", nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4")
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_SeatLayouts", x => x.SeatLayoutId);
+                    })
+                    .Annotation("MySql:CharSet", "utf8mb4");
+            }
+            catch { }
 
-            migrationBuilder.CreateTable(
-                name: "Seats",
-                columns: table => new
-                {
-                    SeatId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    SeatLayoutId = table.Column<int>(type: "int", nullable: false),
-                    RowNumber = table.Column<int>(type: "int", nullable: false),
-                    Column = table.Column<string>(type: "varchar(5)", maxLength: 5, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Label = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CabinClass = table.Column<int>(type: "int", nullable: false),
-                    IsExitRow = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    IsPremium = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    PriceModifier = table.Column<decimal>(type: "decimal(10,2)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Seats", x => x.SeatId);
-                    table.ForeignKey(
-                        name: "FK_Seats_SeatLayouts_SeatLayoutId",
-                        column: x => x.SeatLayoutId,
-                        principalTable: "SeatLayouts",
-                        principalColumn: "SeatLayoutId",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            try
+            {
+                migrationBuilder.CreateTable(
+                    name: "Seats",
+                    columns: table => new
+                    {
+                        SeatId = table.Column<int>(type: "int", nullable: false)
+                            .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                        SeatLayoutId = table.Column<int>(type: "int", nullable: false),
+                        RowNumber = table.Column<int>(type: "int", nullable: false),
+                        Column = table.Column<string>(type: "varchar(5)", maxLength: 5, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        Label = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        CabinClass = table.Column<int>(type: "int", nullable: false),
+                        IsExitRow = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                        IsPremium = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                        PriceModifier = table.Column<decimal>(type: "decimal(10,2)", nullable: true)
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_Seats", x => x.SeatId);
+                        table.ForeignKey(
+                            name: "FK_Seats_SeatLayouts_SeatLayoutId",
+                            column: x => x.SeatLayoutId,
+                            principalTable: "SeatLayouts",
+                            principalColumn: "SeatLayoutId",
+                            onDelete: ReferentialAction.Cascade);
+                    })
+                    .Annotation("MySql:CharSet", "utf8mb4");
+            }
+            catch { }
 
-            migrationBuilder.CreateIndex(
+            try { migrationBuilder.CreateIndex(
                 name: "IX_Reservation_Schedule_Seat_Unique",
                 table: "Reservations",
                 columns: new[] { "ScheduleID", "SeatId" },
-                unique: true);
+                unique: true); } catch { }
 
-            migrationBuilder.CreateIndex(
+            try { migrationBuilder.CreateIndex(
                 name: "IX_Reservations_SeatId",
                 table: "Reservations",
-                column: "SeatId");
+                column: "SeatId"); } catch { }
 
-            migrationBuilder.CreateIndex(
+            try { migrationBuilder.CreateIndex(
                 name: "IX_Flights_SeatLayoutId",
                 table: "Flights",
-                column: "SeatLayoutId");
+                column: "SeatLayoutId"); } catch { }
 
-            migrationBuilder.CreateIndex(
+            try { migrationBuilder.CreateIndex(
                 name: "IX_Seats_SeatLayoutId",
                 table: "Seats",
-                column: "SeatLayoutId");
+                column: "SeatLayoutId"); } catch { }
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Flights_SeatLayouts_SeatLayoutId",
-                table: "Flights",
-                column: "SeatLayoutId",
-                principalTable: "SeatLayouts",
-                principalColumn: "SeatLayoutId",
-                onDelete: ReferentialAction.SetNull);
+            try
+            {
+                migrationBuilder.AddForeignKey(
+                    name: "FK_Flights_SeatLayouts_SeatLayoutId",
+                    table: "Flights",
+                    column: "SeatLayoutId",
+                    principalTable: "SeatLayouts",
+                    principalColumn: "SeatLayoutId",
+                    onDelete: ReferentialAction.SetNull);
+            }
+            catch { }
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Reservations_Seats_SeatId",
-                table: "Reservations",
-                column: "SeatId",
-                principalTable: "Seats",
-                principalColumn: "SeatId",
-                onDelete: ReferentialAction.SetNull);
+            try
+            {
+                migrationBuilder.AddForeignKey(
+                    name: "FK_Reservations_Seats_SeatId",
+                    table: "Reservations",
+                    column: "SeatId",
+                    principalTable: "Seats",
+                    principalColumn: "SeatId",
+                    onDelete: ReferentialAction.SetNull);
+            }
+            catch { }
         }
 
         /// <inheritdoc />

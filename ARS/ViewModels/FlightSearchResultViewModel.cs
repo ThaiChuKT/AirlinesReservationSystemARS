@@ -5,7 +5,15 @@ namespace ARS.ViewModels
     public class FlightSearchResultViewModel
     {
         public FlightSearchViewModel SearchCriteria { get; set; } = new FlightSearchViewModel();
+        // For One-way searches this contains matching flights
         public List<FlightResultItem> Flights { get; set; } = new List<FlightResultItem>();
+
+        // For round-trip
+        public List<FlightResultItem> OutboundFlights { get; set; } = new List<FlightResultItem>();
+        public List<FlightResultItem> ReturnFlights { get; set; } = new List<FlightResultItem>();
+
+        // For multi-city: a list of result lists, one per leg
+        public List<List<FlightResultItem>> LegsResults { get; set; } = new List<List<FlightResultItem>>();
     }
 
     public class FlightResultItem
