@@ -36,11 +36,7 @@
                                 <i class="bi bi-ticket-detailed"></i> My Reservations
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Test" asp-action="Database">
-                                <i class="bi bi-database"></i> Test DB
-                            </a>
-                        </li>
+                        <!-- Test DB link removed -->
                         @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
