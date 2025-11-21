@@ -74,6 +74,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Register seat service
 builder.Services.AddScoped<ARS.Services.ISeatService, ARS.Services.SeatService>();
+// Register background service to cleanup past schedules and flights
+builder.Services.AddHostedService<ARS.Services.FlightCleanupService>();
 
 // Register Identity with integer keys and EF stores
 builder.Services.AddIdentity<ARS.Models.User, IdentityRole<int>>(options =>

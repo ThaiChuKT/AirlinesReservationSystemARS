@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "dgSpecHash": "orTaJfYHs8U=",
+  "success": true,
+  "projectFilePath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\SeedFlights\\SeedFlights.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Kruwul\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\7.0.1\\microsoft.extensions.logging.abstractions.7.0.1.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\mysqlconnector\\2.3.4\\mysqlconnector.2.3.4.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\system.text.encodings.web\\8.0.0\\system.text.encodings.web.8.0.0.nupkg.sha512",
+    "C:\\Users\\Kruwul\\.nuget\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-8g4q-xg66-9fp4",
+      "projectPath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\SeedFlights\\SeedFlights.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\SeedFlights\\SeedFlights.csproj",
+      "libraryId": "System.Text.Json",
+      "targetGraphs": [
+        "net9.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-hh2w-p6rv-4g7w",
+      "projectPath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\SeedFlights\\SeedFlights.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\SeedFlights\\SeedFlights.csproj",
+      "libraryId": "System.Text.Json",
+      "targetGraphs": [
+        "net9.0"
+      ]
+    }
+  ]
+}

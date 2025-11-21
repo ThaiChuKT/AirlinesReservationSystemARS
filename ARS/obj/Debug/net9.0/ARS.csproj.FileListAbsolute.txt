@@ -425,3 +425,8 @@ C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9
 C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\DedupeSeats\obj\Debug\net8.0\DedupeSeats.sourcelink.json
 C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\DedupeSeats\obj\DedupeSeats.csproj.nuget.dgspec.json
 C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\DedupeSeats\obj\project.assets.json
+C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\SeedFlights\bin\Debug\net9.0\SeedFlights.deps.json
+C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\SeedFlights\bin\Debug\net9.0\SeedFlights.runtimeconfig.json
+C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\SeedFlights\obj\Debug\net9.0\SeedFlights.sourcelink.json
+C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\SeedFlights\obj\project.assets.json
+C:\Users\Kruwul\Documents\GitHub\AirlinesReservationSystemARS\ARS\bin\Debug\net9.0\Tools\SeedFlights\obj\SeedFlights.csproj.nuget.dgspec.json

@@ -107,6 +107,36 @@ namespace ARS.Controllers
             // Use the Identity user
             var user = currentUserPost;
 
+            // Load flight (needed to enforce booking cutoff and compute departure datetime)
+            var flight = await _context.Flights.FindAsync(model.FlightID);
+            if (flight == null)
+            {
+                ModelState.AddModelError(string.Empty, "Flight not found.");
+                return View(model);
+            }
+
+            // Enforce booking cutoff: bookings are closed 60 minutes before departure
+            try
+            {
+                var departureDateTime = model.TravelDate.ToDateTime(TimeOnly.FromDateTime(flight.DepartureTime));
+                var cutoff = departureDateTime.AddMinutes(-60);
+                if (DateTime.Now >= cutoff)
+                {
+                    ModelState.AddModelError(string.Empty, "Bookings for this flight are closed 60 minutes before departure.");
+                    // ensure model contains enough display info for the view
+                    model.FlightNumber = flight.FlightNumber;
+                    model.Origin = (await _context.Cities.FindAsync(flight.OriginCityID))?.CityName ?? string.Empty;
+                    model.Destination = (await _context.Cities.FindAsync(flight.DestinationCityID))?.CityName ?? string.Empty;
+                    model.DepartureTime = flight.DepartureTime;
+                    model.ArrivalTime = flight.ArrivalTime;
+                    return View(model);
+                }
+            }
+            catch
+            {
+                // if any error computing cutoff, proceed conservatively (do not block)
+            }
+
             // Create or get schedule
             var schedule = await _context.Schedules
                 .FirstOrDefaultAsync(s => s.FlightID == model.FlightID && s.Date == model.TravelDate);
@@ -143,13 +173,7 @@ namespace ARS.Controllers
             // If the client selected a persisted seat id, validate and reserve it
             if (model.SelectedSeatId.HasValue)
             {
-                // load flight to validate seat layout ownership
-                var flight = await _context.Flights.FindAsync(model.FlightID);
-                if (flight == null)
-                {
-                    ModelState.AddModelError(string.Empty, "Flight not found.");
-                    return View(model);
-                }
+                // flight already loaded above; reuse it to validate seat layout ownership
 
                 var seat = await _context.Seats.FindAsync(model.SelectedSeatId.Value);
                 if (seat == null)

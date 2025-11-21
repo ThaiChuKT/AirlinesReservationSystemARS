@@ -15,20 +15,21 @@
     }
     <div class="card shadow-sm mb-4">
         <div class="card-body bg-light">
-            <form asp-action="All" method="get" id="flightSearchForm" class="row g-3">
+            <form asp-action="Search" method="post" id="flightSearchForm" class="row g-3">
+                @Html.AntiForgeryToken()
                 <div class="col-12 mb-3">
                     <label class="form-label fw-bold">Trip Type</label>
                     <div>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="TripType" id="tripOneWay" value="OneWay" checked />
+                            <input class="form-check-input" type="radio" name="TripType" id="tripOneWay" value="OneWay" @(Model.SearchCriteria.TripType == "OneWay" ? "checked=\"checked\"" : "") />
                             <label class="form-check-label" for="tripOneWay">One-way</label>
                         </div>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="TripType" id="tripRound" value="RoundTrip" />
+                            <input class="form-check-input" type="radio" name="TripType" id="tripRound" value="RoundTrip" @(Model.SearchCriteria.TripType == "RoundTrip" ? "checked=\"checked\"" : "") />
                             <label class="form-check-label" for="tripRound">Round-trip</label>
                         </div>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="TripType" id="tripMulti" value="MultiCity" />
+                            <input class="form-check-input" type="radio" name="TripType" id="tripMulti" value="MultiCity" @(Model.SearchCriteria.TripType == "MultiCity" ? "checked=\"checked\"" : "") />
                             <label class="form-check-label" for="tripMulti">Multi-city</label>
                         </div>
                     </div>
@@ -93,15 +94,15 @@
                 <div class="col-md-6 align-self-end text-end">
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-filter"></i> Apply Filters</button>
                 </div>
-            </form>
-        </div>
-    </div>
 
-    <div id="multiCityContainer" style="display:none;" class="mt-3 container">
-        <label class="form-label fw-bold">Multi-city itinerary</label>
-        <div id="legsList" class="mb-2"></div>
-        <div class="mb-4">
-            <button type="button" class="btn btn-outline-primary" id="btnAddLeg">Add destination</button>
+                <div id="multiCityContainer" style="display:none;" class="mt-3 container">
+                    <label class="form-label fw-bold">Multi-city itinerary</label>
+                    <div id="legsList" class="mb-2"></div>
+                    <div class="mb-4">
+                        <button type="button" class="btn btn-outline-primary" id="btnAddLeg">Add destination</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
