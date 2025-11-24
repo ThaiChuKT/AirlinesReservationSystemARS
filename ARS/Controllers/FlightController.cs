@@ -150,7 +150,7 @@ namespace ARS.Controllers
                     .Include(f => f.DestinationCity)
                     .Include(f => f.Schedules)
                     .Include(f => f.Reservations)
-                    .Where(f => f.OriginCityID == originCityId && f.DestinationCityID == destinationCityId)
+                    .Where(f => f.OriginCityID == originCityId && f.DestinationCityID == destinationCityId && f.Schedules.Any(s => s.Date == travelDate))
                     .ToListAsync();
 
                 return flights.Select(f =>

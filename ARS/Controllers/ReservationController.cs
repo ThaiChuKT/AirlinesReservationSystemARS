@@ -327,6 +327,11 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
 
             // Number of booked seats for that date (not including cancelled)
             var bookedCount = _context.Reservations.Where(r => r.FlightID == flightId && r.TravelDate == travelDate && r.Status != "Cancelled").Count();
+            // Also collect any explicit seat labels that were selected so we can mark those unavailable
+            var reservedLabels = _context.Reservations
+                .Where(r => r.FlightID == flightId && r.TravelDate == travelDate && r.Status != "Cancelled" && r.SeatLabel != null)
+                .Select(r => r.SeatLabel!)
+                .ToHashSet();
 
             // Determine cabin splits: first class (front few rows), business (next), economy (rest)
             var firstRows = Math.Max(1, rowsLegacy / 10); // ~10% front
@@ -347,11 +352,18 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
             }
 
             // Mark occupied seats starting from the back of the plane (rear-filled)
+            // But avoid double-counting seats that were explicitly selected and recorded via SeatLabel.
             var occupiedSet = new HashSet<string>();
-            for (int i = 0; i < bookedCount && i < allSeats.Count; i++)
+            // reservedLabels contains explicit labels from reservations (may be empty)
+            var reservedLabelsLocal = reservedLabels ?? new HashSet<string>();
+            // Number of seats we still need to mark heuristically after accounting for explicit labels
+            var remainingToMark = Math.Max(0, bookedCount - reservedLabelsLocal.Count);
+            for (int j = allSeats.Count - 1; j >= 0 && remainingToMark > 0; j--)
             {
-                var s = allSeats[allSeats.Count - 1 - i];
+                var s = allSeats[j];
+                if (reservedLabelsLocal.Contains(s.Id)) continue; // skip already explicitly reserved labels
                 occupiedSet.Add(s.Id);
+                remainingToMark--;
             }
 
             var rowsResultLegacy = new List<object>();
@@ -369,7 +381,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                     col = s.Col,
                     row = s.Row,
                     cabin,
-                    available = !occupiedSet.Contains(s.Id)
+                    available = !occupiedSet.Contains(s.Id) && !reservedLabels.Contains(s.Id)
                 }).ToList();
 
                 rowsResultLegacy.Add(new { row = rowNum, seats = seatObjs });
