@@ -197,6 +197,8 @@ if (app.Environment.IsDevelopment())
         {
             db.Database.ExecuteSqlRaw(@"ALTER TABLE `Reservations` ADD COLUMN IF NOT EXISTS `SeatId` int NULL;");
             db.Database.ExecuteSqlRaw(@"ALTER TABLE `Reservations` ADD COLUMN IF NOT EXISTS `SeatLabel` varchar(10) NULL;");
+            // New seat-inventory integration column used by the Reservation entity
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE `Reservations` ADD COLUMN IF NOT EXISTS `FlightSeatId` int NULL;");
         }
         catch { }
 
@@ -204,6 +206,7 @@ if (app.Environment.IsDevelopment())
         {
             // create indexes if not present (best-effort)
             db.Database.ExecuteSqlRaw(@"CREATE INDEX IF NOT EXISTS `IX_Reservations_SeatId` ON `Reservations` (`SeatId`);");
+            db.Database.ExecuteSqlRaw(@"CREATE INDEX IF NOT EXISTS `IX_Reservations_FlightSeatId` ON `Reservations` (`FlightSeatId`);");
         }
         catch { }
 
@@ -225,6 +228,18 @@ if (app.Environment.IsDevelopment())
                 if (!exists)
                 {
                     db.Database.ExecuteSqlRaw(@"ALTER TABLE `Reservations` ADD CONSTRAINT `FK_Reservations_Seats_SeatId` FOREIGN KEY (`SeatId`) REFERENCES `Seats` (`SeatId`) ON DELETE SET NULL;");
+                }
+
+                // Ensure FK from Reservations.FlightSeatId to FlightSeats.FlightSeatId exists as well
+                cmd.CommandText = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                    WHERE CONSTRAINT_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'Reservations'
+                      AND CONSTRAINT_NAME = 'FK_Reservations_FlightSeats_FlightSeatId'
+                      AND CONSTRAINT_TYPE = 'FOREIGN KEY'";
+                var fkSeatExists = Convert.ToInt32(cmd.ExecuteScalar() ?? 0) > 0;
+                if (!fkSeatExists)
+                {
+                    db.Database.ExecuteSqlRaw(@"ALTER TABLE `Reservations` ADD CONSTRAINT `FK_Reservations_FlightSeats_FlightSeatId` FOREIGN KEY (`FlightSeatId`) REFERENCES `FlightSeats` (`FlightSeatId`) ON DELETE SET NULL;");
                 }
             }
             catch

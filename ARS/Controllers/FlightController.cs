@@ -129,6 +129,15 @@ namespace ARS.Controllers
             return View("All", results);
         }
 
+        // GET: Flight/Search (legacy links)
+        // Old links and the home page "Search flights" buttons use /Flight/Search.
+        // To keep that URL working, simply redirect to Index where the main search UI lives.
+        [HttpGet]
+        public IActionResult Search()
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
         // POST: Flight/Search
         [HttpPost]
         [ValidateAntiForgeryToken]
