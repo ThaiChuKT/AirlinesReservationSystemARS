@@ -122,6 +122,16 @@
                                     <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
                                 </p>
                                 <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                                <a asp-controller="Reservation"
+                                   asp-action="Create"
+                                   asp-route-flightId="@flight.FlightID"
+                                   asp-route-scheduleId="@flight.ScheduleID"
+                                   asp-route-travelDate="@Model.SearchCriteria.TravelDate"
+                                   asp-route-numAdults="@Model.SearchCriteria.Passengers"
+                                   asp-route-class="@Model.SearchCriteria.Class"
+                                   class="btn btn-primary w-100 mb-2">
+                                    Book Now
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -165,6 +175,16 @@
                                     <span class="badge bg-secondary">@Model.SearchCriteria.Passengers passenger(s)</span>
                                 </p>
                                 <p class="mb-2 text-muted">@flight.AvailableSeats seats available</p>
+                                <a asp-controller="Reservation"
+                                   asp-action="Create"
+                                   asp-route-flightId="@flight.FlightID"
+                                   asp-route-scheduleId="@flight.ScheduleID"
+                                   asp-route-travelDate="@(Model.SearchCriteria.ReturnDate ?? Model.SearchCriteria.TravelDate)"
+                                   asp-route-numAdults="@Model.SearchCriteria.Passengers"
+                                   asp-route-class="@Model.SearchCriteria.Class"
+                                   class="btn btn-primary w-100 mb-2">
+                                    Book Now
+                                </a>
                             </div>
                         </div>
                     </div>
