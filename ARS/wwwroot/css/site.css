@@ -9,7 +9,7 @@ html {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #699ad0;
 }
 
 html {
@@ -18,7 +18,7 @@ html {
 }
 
 body {
-  margin-bottom: 60px;
+  margin-bottom: 0;
   background: linear-gradient(180deg, #e9f3ff 0%, #ffffff 40%, #f5f7fb 100%);
 }
 
@@ -80,7 +80,8 @@ body {
 
 /* Top navigation bar */
 .ars-navbar {
-  background: linear-gradient(90deg, #0b5ed7 0%, #0dcaf0 100%);
+  /* Softer, more pastel header gradient */
+  background: linear-gradient(90deg, #5f7fb1 0%, #38bdf8 45%, #18a3b3 100%);
 }
 
 .ars-navbar .navbar-brand,
