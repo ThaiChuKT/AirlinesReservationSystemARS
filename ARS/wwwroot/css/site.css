@@ -150,6 +150,23 @@ body > .container {
   z-index: 1;
 }
 
+/* Secondary hero action button ("View my trips") */
+.hero-banner .btn-outline-light {
+  background-color: #ffffff;
+  color: #111827;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.15s ease, transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.hero-banner .btn-outline-light:hover,
+.hero-banner .btn-outline-light:focus {
+  background-color: #ffffff;
+  color: #111827;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
 .hero-kicker {
   letter-spacing: 0.08em;
   color: #0d6efd;
