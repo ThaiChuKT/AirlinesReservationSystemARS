@@ -15,11 +15,25 @@ html {
 html {
   position: relative;
   min-height: 100%;
+  height: 100%;
 }
 
 body {
   margin-bottom: 0;
-  background: linear-gradient(180deg, #e9f3ff 0%, #ffffff 40%, #f5f7fb 100%);
+  background: url('../images/cloud.jpg') no-repeat center center fixed;
+  background-size: cover;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure main content stretches to push footer to bottom on short pages */
+body > .container {
+  flex: 1 0 auto;
+}
+
+.ars-footer {
+  margin-top: auto;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -170,31 +184,31 @@ body {
 
 .hero-image-placeholder {
   border-radius: 1.5rem;
-  border: 2px dashed rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.45);
-  padding: 2.5rem 1rem;
-  color: #6c757d;
-  font-size: 0.9rem;
+  overflow: hidden;
 }
 
-.placeholder-label {
-  opacity: 0.85;
+.hero-image {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  display: block;
 }
 
-.home-section {
-  margin-top: 1rem;
+.image-placeholder {
+  border-radius: 1rem;
+  overflow: hidden;
+  height: 180px;
 }
 
-.section-title {
-  font-size: 1.7rem;
-  font-weight: 600;
+.image-placeholder-wide {
+  height: 180px;
 }
 
-.feature-card {
-  padding: 1.5rem 1.25rem;
-  border-radius: 1.25rem;
-  background: #ffffff;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .feature-icon {
