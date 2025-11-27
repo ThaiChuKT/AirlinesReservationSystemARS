@@ -103,12 +103,23 @@
                         </div>
                     </div>
 
-                    <!-- Selected Seats Display -->
-                    <div id="selected-seats-display" class="alert alert-secondary" style="display: none;">
-                        <strong>Selected Seats:</strong> <span id="selected-seats-list"></span>
+                    <!-- Passenger Count Display -->
+                    <div id="passenger-summary" class="alert alert-secondary">
+                        <strong>Passengers:</strong> 
+                        <span id="adults-count">@reservation?.NumAdults Adult(s)</span>, 
+                        <span id="children-count">@reservation?.NumChildren Child(ren)</span>, 
+                        <span id="seniors-count">@reservation?.NumSeniors Senior(s)</span>
                     </div>
 
                     <!-- Navigation Buttons -->
+                    <form id="reschedule-form" asp-action="ConfirmReschedulePost" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reservationId" value="@reservationId" />
+                        <input type="hidden" name="flightId" value="@flightId" />
+                        <input type="hidden" name="scheduleId" value="@scheduleId" />
+                        <input type="hidden" name="newDate" value="@newDate" />
+                        <input type="hidden" name="SeatAssignmentsJson" id="SeatAssignmentsJson" />
+                    </form>
                     <div class="d-flex justify-content-between mt-4">
                         <div>
                             <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">
@@ -123,7 +134,7 @@
                                 </button>
                             </form>
                         </div>
-                        <button type="button" id="continue-btn" class="btn btn-primary" disabled>
+                        <button type="button" id="continue-btn" class="btn btn-primary">
                             <i class="bi bi-arrow-right"></i> Continue to Confirmation
                         </button>
                     </div>
@@ -144,20 +155,62 @@
         const baseFare = @(flight?.BaseFare ?? 0);
         const originalClass = '@reservation?.Class';
         const numPassengers = @passengers;
+        const initialAdults = @reservation?.NumAdults;
+        const initialChildren = @reservation?.NumChildren;
+        const initialSeniors = @reservation?.NumSeniors;
         
-        let selectedSeats = [];
-        let selectedSeatDetails = [];
+        // Track seat assignments: { seatLabel: { type: 'adult'|'child'|'senior', flightSeatId: number } }
+        let seatAssignments = {};
 
         $(document).ready(function() {
             loadSeatMap();
 
             $('#continue-btn').click(function() {
-                if (selectedSeats.length === requiredSeats) {
-                    const seatsParam = selectedSeats.join(',');
-                    window.location.href = `@Url.Action("ConfirmReschedule")?reservationId=${reservationId}&flightId=${flightId}&scheduleId=${scheduleId}&newDate=${newDate}&selectedSeats=${seatsParam}`;
+                // Serialize seat assignments to JSON
+                const payload = { seats: [] };
+                for (const [label, info] of Object.entries(seatAssignments)) {
+                    if (!info) continue;
+                    payload.seats.push({ 
+                        seatLabel: label, 
+                        flightSeatId: info.flightSeatId, 
+                        passengerType: info.type 
+                    });
                 }
+                $('#SeatAssignmentsJson').val(JSON.stringify(payload));
+                
+                // Validate passenger counts match
+                const counts = getPassengerCounts();
+                const totalSelected = counts.adults + counts.children + counts.seniors;
+                const totalRequired = initialAdults + initialChildren + initialSeniors;
+                
+                if (totalSelected !== totalRequired) {
+                    alert(`Please select exactly ${totalRequired} seat(s). Currently selected: ${totalSelected}`);
+                    return;
+                }
+                
+                // Submit form
+                $('#reschedule-form').submit();
             });
         });
+        
+        function getPassengerCounts() {
+            let adults = 0, children = 0, seniors = 0;
+            Object.values(seatAssignments).forEach(val => {
+                if (!val) return;
+                const type = val.type;
+                if (type === 'adult') adults++;
+                else if (type === 'child') children++;
+                else if (type === 'senior') seniors++;
+            });
+            return { adults, children, seniors };
+        }
+        
+        function updatePassengerDisplay() {
+            const counts = getPassengerCounts();
+            $('#adults-count').text(counts.adults + ' Adult(s)');
+            $('#children-count').text(counts.children + ' Child(ren)');
+            $('#seniors-count').text(counts.seniors + ' Senior(s)');
+        }
 
         function loadSeatMap() {
             $.ajax({
@@ -180,116 +233,139 @@
         }
 
         function renderSeatMap(data) {
-            let html = '<div class="seat-map-grid">';
+            const seatGrid = $('<div class="seatmap-airplane"></div>');
             
-            // Add legend
-            html += '<div class="seat-legend mb-3">';
-            html += '<div class="d-flex gap-3 flex-wrap">';
-            html += '<div><span class="seat economy available me-1"></span> Economy Available</div>';
-            html += '<div><span class="seat business available me-1"></span> Business Available</div>';
-            html += '<div><span class="seat first available me-1"></span> First Available</div>';
-            html += '<div><span class="seat reserved me-1"></span> Reserved</div>';
-            html += '<div><span class="seat selected-temp me-1"></span> Selected</div>';
-            html += '</div></div>';
+            // Determine class ranges: rows 1-10 First, 11-30 Business, 31+ Economy
+            const firstEnd = 10;
+            const businessEnd = 30;
             
-            // Render rows
             data.rowsResult.forEach(function(rowData) {
-                html += '<div class="seat-row mb-2">';
-                html += '<span class="row-label me-2">' + rowData.row + '</span>';
+                const rowNum = Number(rowData.row);
+                
+                // Insert class headers
+                if (!isNaN(rowNum)) {
+                    if (rowNum === 1) {
+                        const hdr = $('<div class="seat-class-header mb-2">First Class</div>');
+                        seatGrid.append(hdr);
+                    } else if (rowNum === firstEnd + 1) {
+                        const hdr = $('<div class="seat-class-header mb-2">Business Class</div>');
+                        seatGrid.append(hdr);
+                    } else if (rowNum === businessEnd + 1) {
+                        const hdr = $('<div class="seat-class-header mb-2">Economy Class</div>');
+                        seatGrid.append(hdr);
+                    }
+                }
+                
+                const rowDiv = $('<div class="seat-row d-flex align-items-center mb-2"></div>');
+                
+                // Row label
+                const rowLabel = $('<div class="seat-row-label me-3 fw-bold"></div>').text(rowData.row);
+                rowDiv.append(rowLabel);
+                
+                // Seats container
+                const seatsContainer = $('<div class="seat-buttons d-flex flex-wrap align-items-center justify-content-center"></div>');
                 
                 rowData.seats.forEach(function(seat) {
-                    const classLower = seat.cabin.toLowerCase();
-                    const availableClass = seat.available ? 'available' : 'reserved';
-                    const clickable = seat.available ? 'clickable' : '';
+                    const seatBtn = $('<button type="button" class="btn btn-sm me-1" style="width: 56px;"></button>');
+                    seatBtn.text(seat.label);
+                    seatBtn.attr('title', seat.label + ' - ' + seat.cabin);
+                    seatBtn.data('flightSeatId', seat.id);
+                    seatBtn.data('seat', seat.label);
+                    seatBtn.data('class', seat.cabin);
+                    seatBtn.data('original-label', seat.label);
                     
-                    html += '<div class="seat ' + classLower + ' ' + availableClass + ' ' + clickable + '" ';
-                    html += 'data-seat="' + seat.label + '" ';
-                    html += 'data-class="' + seat.cabin + '" ';
-                    html += 'data-flightseat-id="' + seat.id + '" ';
-                    html += 'title="' + seat.label + ' (' + seat.cabin + ')">';
-                    html += seat.label;
-                    html += '</div>';
+                    if (seat.available) {
+                        // Available seat - can be clicked to cycle
+                        seatBtn.addClass('btn-success');
+                    } else {
+                        // Reserved seat
+                        seatBtn.addClass('btn-danger');
+                        seatBtn.prop('disabled', true);
+                    }
+                    
+                    seatsContainer.append(seatBtn);
+                    
+                    // Insert aisle between C and D
+                    if (seat.col === 'C') {
+                        const aisle = $('<div class="seat-aisle"></div>');
+                        seatsContainer.append(aisle);
+                    }
                 });
                 
-                html += '</div>';
+                rowDiv.append(seatsContainer);
+                seatGrid.append(rowDiv);
             });
             
-            html += '</div>';
+            // Add legend
+            const legend = $('<div class="mt-3 p-2 bg-light border rounded"></div>');
+            legend.html(`
+                <small class="d-block fw-bold mb-1">Click seats to assign passengers:</small>
+                <span class="badge bg-success">&nbsp;&nbsp;</span> Available &nbsp;
+                <span class="badge bg-primary text-white">&nbsp;&nbsp;</span> Adult &nbsp;
+                <span class="badge bg-info text-white">&nbsp;&nbsp;</span> Child &nbsp;
+                <span class="badge bg-warning text-dark">&nbsp;&nbsp;</span> Senior &nbsp;
+                <span class="badge bg-danger">&nbsp;&nbsp;</span> Reserved
+            `);
             
-            // Add CSS for seat map
-            html += '<style>';
-            html += '.seat-map-grid { max-width: 600px; margin: 0 auto; }';
-            html += '.seat-row { display: flex; align-items: center; justify-content: center; }';
-            html += '.row-label { width: 30px; font-weight: bold; color: #666; }';
-            html += '.seat { width: 40px; height: 40px; margin: 2px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #ddd; border-radius: 5px; font-size: 12px; font-weight: bold; user-select: none; }';
-            html += '.seat.economy { background-color: #e3f2fd; border-color: #2196F3; }';
-            html += '.seat.business { background-color: #fff3e0; border-color: #ff9800; }';
-            html += '.seat.first { background-color: #f3e5f5; border-color: #9c27b0; }';
-            html += '.seat.available.clickable { cursor: pointer; }';
-            html += '.seat.available.clickable:hover { opacity: 0.7; transform: scale(1.05); }';
-            html += '.seat.reserved { background-color: #ccc !important; border-color: #999 !important; color: #666; cursor: not-allowed; }';
-            html += '.seat.selected-temp { background-color: #4CAF50 !important; border-color: #2E7D32 !important; color: white; }';
-            html += '.seat-legend { font-size: 14px; }';
-            html += '.seat-legend .seat { width: 30px; height: 30px; margin: 0; display: inline-flex; }';
-            html += '</style>';
-            
-            $('#seat-map-content').html(html).show();
+            $('#seat-map-content').empty().append(seatGrid).append(legend).show();
         }
 
         function initializeSeatSelection() {
-            $('.seat.available').off('click').on('click', function() {
+            $('.btn-success, .btn-primary, .btn-info, .btn-warning').off('click').on('click', function() {
+                if ($(this).prop('disabled')) return;
+                
                 const seatLabel = $(this).data('seat');
                 const seatClass = $(this).data('class') || 'Economy';
-                const seatId = $(this).data('flightseat-id');
+                const seatId = $(this).data('flightSeatId');
                 
-                if ($(this).hasClass('selected-temp')) {
-                    // Deselect
-                    $(this).removeClass('selected-temp');
-                    const index = selectedSeats.indexOf(seatLabel);
-                    if (index > -1) {
-                        selectedSeats.splice(index, 1);
-                        selectedSeatDetails.splice(index, 1);
-                    }
+                // Cycle through: null -> adult -> child -> senior -> null
+                const currentType = seatAssignments[seatLabel] ? seatAssignments[seatLabel].type : null;
+                let nextType = null;
+                
+                if (currentType === null || currentType === undefined) nextType = 'adult';
+                else if (currentType === 'adult') nextType = 'child';
+                else if (currentType === 'child') nextType = 'senior';
+                else if (currentType === 'senior') nextType = null;
+                
+                // Update assignment
+                if (nextType === null) {
+                    delete seatAssignments[seatLabel];
                 } else {
-                    // Select
-                    if (selectedSeats.length < requiredSeats) {
-                        $(this).addClass('selected-temp');
-                        selectedSeats.push(seatLabel);
-                        selectedSeatDetails.push({
-                            label: seatLabel,
-                            class: seatClass,
-                            id: seatId
-                        });
-                    } else {
-                        alert(`You can only select ${requiredSeats} seat(s). Please deselect a seat first.`);
-                        return;
-                    }
+                    seatAssignments[seatLabel] = { type: nextType, flightSeatId: seatId, cabinClass: seatClass };
                 }
-
-                updateSelectedSeatsDisplay();
+                
+                // Update seat button appearance
+                applySeatStyle($(this), nextType, seatLabel);
+                
+                // Update passenger counts and pricing
+                updatePassengerDisplay();
                 updatePricing();
             });
         }
-
-        function updateSelectedSeatsDisplay() {
-            if (selectedSeats.length > 0) {
-                let displayText = selectedSeats.map((seat, idx) => {
-                    const detail = selectedSeatDetails[idx];
-                    return `${seat} (${detail.class})`;
-                }).join(', ');
-                $('#selected-seats-list').html(displayText);
-                $('#selected-seats-display').show();
+        
+        function applySeatStyle($button, passengerType, seatLabel) {
+            // Remove all type classes
+            $button.removeClass('btn-success btn-primary btn-info btn-warning');
+            
+            const originalLabel = $button.data('original-label');
+            
+            if (passengerType === 'adult') {
+                $button.addClass('btn-primary');
+                $button.html(originalLabel + '<br><small>Adult</small>');
+            } else if (passengerType === 'child') {
+                $button.addClass('btn-info');
+                $button.html(originalLabel + '<br><small>Child</small>');
+            } else if (passengerType === 'senior') {
+                $button.addClass('btn-warning');
+                $button.html(originalLabel + '<br><small>Senior</small>');
             } else {
-                $('#selected-seats-display').hide();
-            }
-
-            // Enable/disable continue button
-            if (selectedSeats.length === requiredSeats) {
-                $('#continue-btn').prop('disabled', false);
-            } else {
-                $('#continue-btn').prop('disabled', true);
+                // Available (not assigned)
+                $button.addClass('btn-success');
+                $button.text(originalLabel);
             }
         }
+
+
 
         function updatePricing() {
             // Calculate new price based on selected seat classes
@@ -300,14 +376,16 @@
                                    daysBeforeDeparture >= 15 ? 1.00 :
                                    daysBeforeDeparture >= 7 ? 1.20 : 1.50;
 
-            selectedSeatDetails.forEach(seat => {
-                const classMultiplier = seat.class === 'Business' ? 2.0 :
-                                      seat.class === 'First' ? 3.5 : 1.0;
+            Object.values(seatAssignments).forEach(info => {
+                if (!info) return;
+                const classMultiplier = info.cabinClass === 'Business' ? 2.0 :
+                                      info.cabinClass === 'First' ? 3.5 : 1.0;
                 totalPrice += baseFare * classMultiplier * timingMultiplier;
             });
 
             // If not all seats selected, estimate remaining with original class
-            const remainingSeats = numPassengers - selectedSeats.length;
+            const selectedCount = Object.keys(seatAssignments).length;
+            const remainingSeats = numPassengers - selectedCount;
             if (remainingSeats > 0) {
                 const originalClassMultiplier = originalClass === 'Business' ? 2.0 :
                                                originalClass === 'First' ? 3.5 : 1.0;
@@ -337,10 +415,81 @@
     </script>
 
     <style>
-        .seat.selected-temp {
+        /* Airplane-style seat map layout */
+        .seatmap-airplane {
+            max-width: 650px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .seat-class-header {
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+            padding: 10px;
+            background: linear-gradient(to right, #f8f9fa, #e9ecef, #f8f9fa);
+            border-radius: 4px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .seat-row {
+            margin-bottom: 8px;
+        }
+        
+        .seat-row-label {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .seat-buttons {
+            flex: 1;
+        }
+        
+        .seat-buttons .btn {
+            min-width: 50px;
+            height: 45px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px;
+            border-width: 2px;
+            transition: all 0.2s;
+        }
+        
+        .seat-buttons .btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .seat-aisle {
+            width: 30px;
+            min-width: 30px;
+        }
+        
+        /* Passenger type colors */
+        .btn-primary {
             background-color: #0d6efd !important;
-            color: white !important;
             border-color: #0d6efd !important;
+            color: white !important;
+        }
+        
+        .btn-info {
+            background-color: #0dcaf0 !important;
+            border-color: #0dcaf0 !important;
+            color: #000 !important;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107 !important;
+            border-color: #ffc107 !important;
+            color: #000 !important;
         }
     </style>
 }
