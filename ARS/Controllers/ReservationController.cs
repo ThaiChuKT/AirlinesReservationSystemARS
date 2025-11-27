@@ -773,8 +773,9 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 return NotFound();
             }
 
-            // Verify the reservation belongs to the logged-in user
-            if (reservation.UserID != currentUserDetails.Id)
+            // Verify the reservation belongs to the logged-in user OR user is an admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUserDetails.Id && !isAdmin)
             {
                 return Forbid();
             }
@@ -800,7 +801,10 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .FirstOrDefaultAsync(r => r.ReservationID == id);
 
             if (reservation == null) return NotFound();
-            if (reservation.UserID != currentUser.Id) return Forbid();
+            
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
 
             var vm = new ARS.ViewModels.RescheduleInitViewModel
             {
@@ -829,7 +833,10 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .FirstOrDefaultAsync(r => r.ReservationID == id);
 
             if (reservation == null) return NotFound();
-            if (reservation.UserID != currentUser.Id) return Forbid();
+            
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
 
             var passengers = reservation.NumAdults + reservation.NumChildren + reservation.NumSeniors;
 
@@ -922,7 +929,10 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
 
             if (reservation == null) return NotFound();
-            if (reservation.UserID != currentUser.Id) return Forbid();
+            
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
 
             var flight = await _context.Flights.FindAsync(flightId);
             if (flight == null) return NotFound();
@@ -975,7 +985,10 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
 
             if (reservation == null) return NotFound();
-            if (reservation.UserID != currentUser.Id) return Forbid();
+            
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
 
             var flight = await _context.Flights.FindAsync(flightId);
             if (flight == null) return NotFound();

@@ -116,6 +116,12 @@ if (app.Environment.IsDevelopment())
             var roleResult = roleManager.CreateAsync(new IdentityRole<int>("Admin")).GetAwaiter().GetResult();
         }
 
+        // Create Customer role if missing
+        if (!roleManager.RoleExistsAsync("Customer").GetAwaiter().GetResult())
+        {
+            var roleResult = roleManager.CreateAsync(new IdentityRole<int>("Customer")).GetAwaiter().GetResult();
+        }
+
         // Create admin user if missing
         var existing = userManager.FindByEmailAsync(adminEmail).GetAwaiter().GetResult();
         if (existing == null)

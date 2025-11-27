@@ -44,7 +44,9 @@ namespace ARS.Controllers
                 return NotFound();
             }
 
-            if (reservation.UserID != currentUser.Id)
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin)
             {
                 return Forbid();
             }
@@ -102,7 +104,9 @@ namespace ARS.Controllers
                 return NotFound();
             }
 
-            if (reservation.UserID != currentUser.Id)
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin)
             {
                 return Forbid();
             }
