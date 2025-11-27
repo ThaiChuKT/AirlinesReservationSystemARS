@@ -150,5 +150,88 @@ namespace ARS.Services
                 return false;
             }
         }
+
+        // Reserve seat for a specific reservation leg
+        public async Task<bool> ReserveSeatForLegAsync(int flightSeatId, int reservationLegId)
+        {
+            using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var reservedValue = (int)FlightSeatStatus.Reserved;
+                var updateSql = @"UPDATE `FlightSeats` SET `Status` = {0}, `ReservedByReservationID` = {1}, `UpdatedAt` = NOW() WHERE `FlightSeatId` = {2} AND `Status` = {3};";
+
+                // We will set ReservedByReservationID to the parent ReservationID so existing schema works.
+                // First load the reservation leg to get parent reservation id
+                var leg = await _db.ReservationLegs.FindAsync(reservationLegId);
+                if (leg == null)
+                {
+                    await tx.RollbackAsync();
+                    return false;
+                }
+
+                var reservationId = leg.ReservationID;
+
+                var affected = await _db.Database.ExecuteSqlRawAsync(updateSql, reservedValue, reservationId, flightSeatId, (int)FlightSeatStatus.Available);
+                if (affected != 1)
+                {
+                    await tx.RollbackAsync();
+                    return false;
+                }
+
+                // Now set the ReservationLeg.FlightSeatId to point to the flight seat
+                leg.FlightSeatId = flightSeatId;
+                _db.ReservationLegs.Update(leg);
+                await _db.SaveChangesAsync();
+
+                await tx.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ReserveSeatForLegAsync failed for FlightSeat {FlightSeatId} and Leg {ReservationLegId}", flightSeatId, reservationLegId);
+                try { await tx.RollbackAsync(); } catch { }
+                return false;
+            }
+        }
+
+        // Cancel a reservation seat for a specific reservation leg
+        public async Task<bool> CancelReservationSeatForLegAsync(int reservationLegId)
+        {
+            using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var leg = await _db.ReservationLegs.FindAsync(reservationLegId);
+                if (leg == null || leg.FlightSeatId == null)
+                {
+                    await tx.RollbackAsync();
+                    return false;
+                }
+
+                var flightSeatId = leg.FlightSeatId.Value;
+
+                var updateSql = @"UPDATE `FlightSeats` SET `Status` = {0}, `ReservedByReservationID` = NULL, `UpdatedAt` = NOW() WHERE `FlightSeatId` = {1} AND `ReservedByReservationID` = {2};";
+
+                var affected = await _db.Database.ExecuteSqlRawAsync(updateSql, (int)FlightSeatStatus.Available, flightSeatId, leg.ReservationID);
+                if (affected != 1)
+                {
+                    await tx.RollbackAsync();
+                    return false;
+                }
+
+                // Clear the leg pointer
+                leg.FlightSeatId = null;
+                _db.ReservationLegs.Update(leg);
+                await _db.SaveChangesAsync();
+
+                await tx.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CancelReservationSeatForLegAsync failed for ReservationLeg {ReservationLegId}", reservationLegId);
+                try { await tx.RollbackAsync(); } catch { }
+                return false;
+            }
+        }
     }
 }

@@ -8,7 +8,17 @@ using MySqlConnector;
 // Simple seed tool: reads connection string from ARS/appsettings.json and inserts flights+ schedules
 // Usage: dotnet run --project ARS/Tools/SeedFlights/SeedFlights.csproj
 
-string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "appsettings.json");
+// Find appsettings.json by going up from current directory
+string currentDir = Directory.GetCurrentDirectory();
+string appSettingsPath = Path.Combine(currentDir, "..", "..", "appsettings.json");
+if (!File.Exists(appSettingsPath))
+{
+    appSettingsPath = Path.Combine(currentDir, "appsettings.json");
+}
+if (!File.Exists(appSettingsPath))
+{
+    appSettingsPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "appsettings.json");
+}
 appSettingsPath = Path.GetFullPath(appSettingsPath);
 if (!File.Exists(appSettingsPath))
 {

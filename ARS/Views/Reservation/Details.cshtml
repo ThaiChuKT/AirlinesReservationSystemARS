@@ -46,25 +46,78 @@
                     <hr>
 
                     <h6 class="mb-3">Flight Information</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <h5 class="text-primary">@Model.Flight?.FlightNumber</h5>
-                            <p class="text-muted">@Model.Flight?.AircraftType</p>
-                        </div>
-                    </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Departure</p>
-                            <h6>@Model.Flight?.OriginCity?.CityName (@Model.Flight?.OriginCity?.AirportCode)</h6>
-                            <p class="text-muted">@Model.Flight?.DepartureTime.ToString("HH:mm")</p>
+                    @if (Model.Legs != null && Model.Legs.Any())
+                    {
+                        <h6 class="text-muted mb-2">Multi-leg itinerary (@Model.Legs.Count leg(s))</h6>
+                        @foreach (var leg in Model.Legs.OrderBy(l => l.LegOrder))
+                        {
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <span class="badge bg-secondary me-2">Leg @leg.LegOrder</span>
+                                        <strong>@leg.Flight?.FlightNumber</strong>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="text-muted small">
+                                            @leg.TravelDate.ToString("MMM dd, yyyy")
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-1 text-muted">Departure</p>
+                                        <h6>
+                                            @leg.Flight?.OriginCity?.CityName (@leg.Flight?.OriginCity?.AirportCode)
+                                        </h6>
+                                        <p class="text-muted">
+                                            @leg.Flight?.DepartureTime.ToString("HH:mm")
+                                        </p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1 text-muted">Arrival</p>
+                                        <h6>
+                                            @leg.Flight?.DestinationCity?.CityName (@leg.Flight?.DestinationCity?.AirportCode)
+                                        </h6>
+                                        <p class="text-muted">
+                                            @leg.Flight?.ArrivalTime.ToString("HH:mm")
+                                        </p>
+                                    </div>
+                                </div>
+                                @if (!string.IsNullOrEmpty(leg.SeatLabel) || leg.Seat != null)
+                                {
+                                    <div class="mt-2">
+                                        <p class="mb-1 text-muted">Seat</p>
+                                        <span class="badge bg-success">
+                                            @(leg.Seat?.Label ?? leg.SeatLabel)
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <h5 class="text-primary">@Model.Flight?.FlightNumber</h5>
+                                <p class="text-muted">@Model.Flight?.AircraftType</p>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted">Arrival</p>
-                            <h6>@Model.Flight?.DestinationCity?.CityName (@Model.Flight?.DestinationCity?.AirportCode)</h6>
-                            <p class="text-muted">@Model.Flight?.ArrivalTime.ToString("HH:mm")</p>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="mb-1 text-muted">Departure</p>
+                                <h6>@Model.Flight?.OriginCity?.CityName (@Model.Flight?.OriginCity?.AirportCode)</h6>
+                                <p class="text-muted">@Model.Flight?.DepartureTime.ToString("HH:mm")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1 text-muted">Arrival</p>
+                                <h6>@Model.Flight?.DestinationCity?.CityName (@Model.Flight?.DestinationCity?.AirportCode)</h6>
+                                <p class="text-muted">@Model.Flight?.ArrivalTime.ToString("HH:mm")</p>
+                            </div>
                         </div>
-                    </div>
+                    }
 
                     <hr>
 

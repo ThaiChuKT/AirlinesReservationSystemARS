@@ -12,6 +12,7 @@
                 </div>
                 <div class="card-body">
                     <form asp-action="Create" method="post">
+                        @* Single-leg hidden fields (for backward compatibility) *@
                         <input type="hidden" asp-for="FlightID" />
                         <input type="hidden" asp-for="ScheduleID" />
                         <input type="hidden" asp-for="FlightNumber" />
@@ -22,6 +23,24 @@
                         <input type="hidden" asp-for="TravelDate" />
                         <input type="hidden" asp-for="BasePrice" />
                         <input type="hidden" asp-for="TotalPrice" />
+                        
+                        @* Multi-leg hidden fields *@
+                        @if (Model.IsMultiLeg)
+                        {
+                            for (int i = 0; i < Model.Legs.Count; i++)
+                            {
+                                <input type="hidden" id="Legs_@(i)__FlightID" name="Legs[@i].FlightID" value="@Model.Legs[i].FlightID" />
+                                <input type="hidden" id="Legs_@(i)__ScheduleID" name="Legs[@i].ScheduleID" value="@Model.Legs[i].ScheduleID" />
+                                <input type="hidden" id="Legs_@(i)__FlightNumber" name="Legs[@i].FlightNumber" value="@Model.Legs[i].FlightNumber" />
+                                <input type="hidden" id="Legs_@(i)__Origin" name="Legs[@i].Origin" value="@Model.Legs[i].Origin" />
+                                <input type="hidden" id="Legs_@(i)__Destination" name="Legs[@i].Destination" value="@Model.Legs[i].Destination" />
+                                <input type="hidden" id="Legs_@(i)__TravelDate" name="Legs[@i].TravelDate" value="@Model.Legs[i].TravelDate" />
+                                <input type="hidden" id="Legs_@(i)__BasePrice" name="Legs[@i].BasePrice" value="@Model.Legs[i].BasePrice" />
+                                <input type="hidden" id="Legs_@(i)__LegOrder" name="Legs[@i].LegOrder" value="@Model.Legs[i].LegOrder" />
+                                <input type="hidden" id="Legs_@(i)__SelectedSeat" name="Legs[@i].SelectedSeat" value="@Model.Legs[i].SelectedSeat" />
+                                <input type="hidden" id="Legs_@(i)__SelectedSeatId" name="Legs[@i].SelectedSeatId" value="@Model.Legs[i].SelectedSeatId" />
+                            }
+                        }
                         
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
@@ -90,6 +109,54 @@
                             <input type="hidden" asp-for="SelectedSeat" id="SelectedSeat" />
                             <input type="hidden" asp-for="SelectedSeatId" id="SelectedSeatId" />
 
+                            @* Segment selector for multi-leg bookings (round-trip or multi-city) *@
+                            @if (Model.IsMultiLeg)
+                            {
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold">Select segment to choose seat</label>
+                                    
+                                    @if (Model.Legs.Count <= 2)
+                                    {
+                                        @* For round-trip (2 legs), show as button group *@
+                                        <div class="btn-group w-100" role="group" aria-label="Segments" id="segmentSelector">
+                                            @for (int i = 0; i < Model.Legs.Count; i++)
+                                            {
+                                                var leg = Model.Legs[i];
+                                                <button type="button"
+                                                        class="btn btn-outline-primary segment-btn @(i == 0 ? "active" : "")"
+                                                        data-leg-index="@i">
+                                                    Leg @leg.LegOrder: @leg.Origin → @leg.Destination
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @* For multi-city (3+ legs), show with pagination *@
+                                        <div id="segmentSelector" class="card">
+                                            <div class="card-body p-2">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="prevLegBtn">
+                                                        <i class="bi bi-chevron-left"></i> Previous
+                                                    </button>
+                                                    <div class="text-center flex-grow-1 px-3">
+                                                        <div id="currentLegInfo" class="fw-bold"></div>
+                                                        <small id="legCounter" class="text-muted"></small>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="nextLegBtn">
+                                                        Next <i class="bi bi-chevron-right"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                    
+                                    <small id="segmentHint" class="text-muted d-block mt-1">
+                                        Currently selecting seat for leg 1.
+                                    </small>
+                                </div>
+                            }
+
                             <button type="button" class="btn btn-outline-secondary w-100 mb-2" id="btnToggleSeatMap">Select Seat</button>
 
                             <div id="seatMapContainer" class="mb-3" style="display:none;">
@@ -112,16 +179,38 @@
                     <h5 class="mb-0">Booking Summary</h5>
                 </div>
                 <div class="card-body">
-                    <h6 class="text-primary">@Model.FlightNumber</h6>
-                    <p class="mb-2">
-                        <strong>@Model.Origin</strong> → <strong>@Model.Destination</strong>
-                    </p>
-                    <p class="text-muted mb-2">
-                        <i class="bi bi-calendar"></i> @Model.TravelDate.ToString("MMMM dd, yyyy")
-                    </p>
-                    <p class="text-muted mb-2">
-                        <i class="bi bi-clock"></i> @Model.DepartureTime.ToString("HH:mm") - @Model.ArrivalTime.ToString("HH:mm")
-                    </p>
+                    @if (Model.IsMultiLeg)
+                    {
+                        <h6 class="text-primary mb-3">@(Model.Legs.Count)-Leg Itinerary</h6>
+                        @foreach (var leg in Model.Legs.OrderBy(l => l.LegOrder))
+                        {
+                            <div class="mb-3 pb-3 @(leg.LegOrder < Model.Legs.Count ? "border-bottom" : "")">
+                                <strong class="d-block mb-1">Leg @leg.LegOrder: @leg.FlightNumber</strong>
+                                <p class="mb-1 small">
+                                    <strong>@leg.Origin</strong> → <strong>@leg.Destination</strong>
+                                </p>
+                                <p class="text-muted mb-1 small">
+                                    <i class="bi bi-calendar"></i> @leg.TravelDate.ToString("MMM dd, yyyy")
+                                </p>
+                                <p class="text-muted mb-0 small">
+                                    <i class="bi bi-clock"></i> @leg.DepartureTime.ToString("HH:mm") - @leg.ArrivalTime.ToString("HH:mm")
+                                </p>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <h6 class="text-primary">@Model.FlightNumber</h6>
+                        <p class="mb-2">
+                            <strong>@Model.Origin</strong> → <strong>@Model.Destination</strong>
+                        </p>
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-calendar"></i> @Model.TravelDate.ToString("MMMM dd, yyyy")
+                        </p>
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-clock"></i> @Model.DepartureTime.ToString("HH:mm") - @Model.ArrivalTime.ToString("HH:mm")
+                        </p>
+                    }
                     
                     <hr>
                     
@@ -133,10 +222,13 @@
                         <span>Passengers:</span>
                         <strong>@Model.NumAdults</strong>
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Price per person:</span>
-                        <strong>$@Model.BasePrice.ToString("N2")</strong>
-                    </div>
+                    @if (!Model.IsMultiLeg)
+                    {
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Price per person:</span>
+                            <strong>$@Model.BasePrice.ToString("N2")</strong>
+                        </div>
+                    }
                     
                     <hr>
                     
@@ -160,126 +252,252 @@ document.addEventListener('DOMContentLoaded', function(){
     const container = document.getElementById('seatMapContainer');
     const seatMap = document.getElementById('seatMap');
     const selectedSeatInput = document.getElementById('SelectedSeat');
+    const selectedSeatIdInputRoot = document.getElementById('SelectedSeatId');
+
+    const isMultiLeg = @(Model.IsMultiLeg.ToString().ToLower());
+    const totalLegs = @Model.Legs.Count;
+    let currentLegIndex = 0;
+
+    const segmentButtons = document.querySelectorAll('.segment-btn');
+    const segmentHint = document.getElementById('segmentHint');
+    const prevLegBtn = document.getElementById('prevLegBtn');
+    const nextLegBtn = document.getElementById('nextLegBtn');
+    const currentLegInfo = document.getElementById('currentLegInfo');
+    const legCounter = document.getElementById('legCounter');
+
+    // Array to store leg details for multi-city pagination
+    const legs = [
+        @foreach (var leg in Model.Legs)
+        {
+            <text>{ order: @leg.LegOrder, origin: '@leg.Origin', destination: '@leg.Destination' },</text>
+        }
+    ];
+
+    function updateSegmentUI() {
+        // For round-trip (button group)
+        segmentButtons.forEach(btn => {
+            const idx = parseInt(btn.getAttribute('data-leg-index')) || 0;
+            if (idx === currentLegIndex) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+        
+        // For multi-city (pagination)
+        if (currentLegInfo && legs.length > 0) {
+            const leg = legs[currentLegIndex];
+            currentLegInfo.textContent = `Leg ${leg.order}: ${leg.origin} → ${leg.destination}`;
+        }
+        if (legCounter) {
+            legCounter.textContent = `Leg ${currentLegIndex + 1} of ${totalLegs}`;
+        }
+        if (prevLegBtn) {
+            prevLegBtn.disabled = currentLegIndex === 0;
+        }
+        if (nextLegBtn) {
+            nextLegBtn.disabled = currentLegIndex === totalLegs - 1;
+        }
+        
+        if (segmentHint) {
+            segmentHint.textContent = `Currently selecting seat for leg ${currentLegIndex + 1}.`;
+        }
+    }
+
+    // Handle round-trip segment buttons
+    segmentButtons.forEach(btnSeg => {
+        btnSeg.addEventListener('click', function(){
+            const idx = parseInt(this.getAttribute('data-leg-index')) || 0;
+            currentLegIndex = idx;
+            updateSegmentUI();
+            if (container.style.display !== 'none') {
+                loadSeatMap();
+            }
+        });
+    });
+
+    // Handle multi-city pagination buttons
+    if (prevLegBtn) {
+        prevLegBtn.addEventListener('click', function() {
+            if (currentLegIndex > 0) {
+                currentLegIndex--;
+                updateSegmentUI();
+                if (container.style.display !== 'none') {
+                    loadSeatMap();
+                }
+            }
+        });
+    }
+
+    if (nextLegBtn) {
+        nextLegBtn.addEventListener('click', function() {
+            if (currentLegIndex < totalLegs - 1) {
+                currentLegIndex++;
+                updateSegmentUI();
+                if (container.style.display !== 'none') {
+                    loadSeatMap();
+                }
+            }
+        });
+    }
+
+    // Initialize UI
+    updateSegmentUI();
+
+    function getFlightAndDateForCurrentContext() {
+        if (isMultiLeg && totalLegs > 0) {
+            const flightInput = document.getElementById(`Legs_${currentLegIndex}__FlightID`);
+            const dateInput = document.getElementById(`Legs_${currentLegIndex}__TravelDate`);
+            const scheduleInput = document.getElementById(`Legs_${currentLegIndex}__ScheduleID`);
+            if (!flightInput || !dateInput) return null;
+            return { 
+                flightId: flightInput.value, 
+                travelDateRaw: dateInput.value,
+                scheduleId: scheduleInput ? scheduleInput.value : null
+            };
+        } else {
+            const flightId = document.querySelector('input[name="FlightID"]').value;
+            let travelDateRaw = document.querySelector('input[name="TravelDate"]').value;
+            const scheduleId = document.querySelector('input[name="ScheduleID"]')?.value;
+            return { flightId, travelDateRaw, scheduleId };
+        }
+    }
+
+    async function loadSeatMap() {
+        const ctx = getFlightAndDateForCurrentContext();
+        if (!ctx || !ctx.flightId) return;
+        let { flightId, travelDateRaw, scheduleId } = ctx;
+
+        // normalize travel date to yyyy-MM-dd if possible
+        try {
+            if (travelDateRaw && travelDateRaw.includes('/')) {
+                const parts = travelDateRaw.split('/').map(p => p.trim());
+                if (parts.length === 3) travelDateRaw = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+            }
+        } catch (e) { /* ignore and send raw */ }
+
+        let url = `/Reservation/GetSeatMap?flightId=${encodeURIComponent(flightId)}&travelDate=${encodeURIComponent(travelDateRaw)}`;
+        if (scheduleId) {
+            url += `&scheduleId=${encodeURIComponent(scheduleId)}`;
+        }
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        // render airplane-style rows
+        seatMap.innerHTML = '';
+        const seatGrid = document.createElement('div');
+        seatGrid.className = 'seatmap-airplane';
+
+        // determine class ranges: rows 1-10 First, 11-30 Business, 31+ Economy
+        const firstEnd = 10;
+        const businessEnd = 30;
+
+        data.rowsResult.forEach(r => {
+            // if this row should show a class header, insert it
+            const rowNum = Number(r.row);
+            if (!isNaN(rowNum)) {
+                if (rowNum === 1) {
+                    const hdr = document.createElement('div');
+                    hdr.className = 'seat-class-header mb-2';
+                    hdr.textContent = 'First Class';
+                    seatGrid.appendChild(hdr);
+                } else if (rowNum === firstEnd + 1) {
+                    const hdr = document.createElement('div');
+                    hdr.className = 'seat-class-header mb-2';
+                    hdr.textContent = 'Business Class';
+                    seatGrid.appendChild(hdr);
+                } else if (rowNum === businessEnd + 1) {
+                    const hdr = document.createElement('div');
+                    hdr.className = 'seat-class-header mb-2';
+                    hdr.textContent = 'Economy Class';
+                    seatGrid.appendChild(hdr);
+                }
+            }
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'seat-row d-flex align-items-center mb-2';
+
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'seat-row-label me-3 fw-bold';
+            rowLabel.textContent = r.row;
+            rowDiv.appendChild(rowLabel);
+
+            // wrap seats in a container so we can center them independent of the label width
+            const seatsContainer = document.createElement('div');
+            seatsContainer.className = 'seat-buttons d-flex flex-wrap align-items-center justify-content-center';
+
+            r.seats.forEach(s => {
+                const seatBtn = document.createElement('button');
+                seatBtn.type = 'button';
+                seatBtn.className = 'btn btn-sm me-1';
+                seatBtn.style.width = '56px';
+                seatBtn.textContent = s.label;
+                seatBtn.title = `${s.label} - ${s.cabin}`;
+                if (s.available) {
+                    seatBtn.classList.add('btn-success');
+                    seatBtn.addEventListener('click', () => {
+                        document.querySelectorAll('#seatMap button').forEach(b => b.classList.remove('border-primary'));
+                        seatBtn.classList.add('border','border-primary');
+
+                        if (isMultiLeg && totalLegs > 0) {
+                            const legSeatInput = document.getElementById(`Legs_${currentLegIndex}__SelectedSeat`);
+                            const legSeatIdInput = document.getElementById(`Legs_${currentLegIndex}__SelectedSeatId`);
+                            console.log(`Leg ${currentLegIndex}: Selecting seat ${s.label} with FlightSeatId=${s.id}`);
+                            if (legSeatInput) legSeatInput.value = s.label;
+                            if (legSeatIdInput) {
+                                // s.id is now FlightSeatId, store it directly
+                                legSeatIdInput.value = s.id;
+                                console.log(`Set Legs_${currentLegIndex}__SelectedSeatId = ${s.id}`);
+                            }
+                        } else {
+                            if (selectedSeatInput) selectedSeatInput.value = s.label;
+                            if (selectedSeatIdInputRoot) {
+                                // s.id is now FlightSeatId, store it directly
+                                selectedSeatIdInputRoot.value = s.id;
+                                console.log(`Single leg: Set SelectedSeatId = ${s.id}`);
+                            }
+                        }
+
+                        // set class based on row number
+                        const numericRow = parseInt(s.label, 10);
+                        let seatClass = 'Economy';
+                        if (!isNaN(numericRow)) {
+                            if (numericRow <= firstEnd) seatClass = 'First';
+                            else if (numericRow <= businessEnd) seatClass = 'Business';
+                            else seatClass = 'Economy';
+                        }
+                        // set visible select (disabled) and hidden input used for POST
+                        const classSelect = document.getElementById('ClassSelect');
+                        const classHidden = document.getElementById('ClassHidden');
+                        if (classSelect) {
+                            classSelect.value = seatClass;
+                        }
+                        if (classHidden) {
+                            classHidden.value = seatClass;
+                        }
+                    });
+                } else {
+                    seatBtn.classList.add('btn-danger');
+                    seatBtn.disabled = true;
+                }
+                seatsContainer.appendChild(seatBtn);
+
+                // insert aisle between C and D
+                if (s.col === 'C') {
+                    const aisle = document.createElement('div');
+                    aisle.className = 'seat-aisle';
+                    seatsContainer.appendChild(aisle);
+                }
+            });
+
+            rowDiv.appendChild(seatsContainer);
+            seatGrid.appendChild(rowDiv);
+        });
+
+        seatMap.appendChild(seatGrid);
+        container.style.display = '';
+        btn.textContent = 'Hide Seat Map';
+    }
 
     btn.addEventListener('click', async () => {
         if (container.style.display === 'none') {
-            // fetch seat map
-            const flightId = document.querySelector('input[name="FlightID"]').value;
-            let travelDateRaw = document.querySelector('input[name="TravelDate"]').value;
-            // normalize travel date to yyyy-MM-dd if possible
-            try {
-                if (travelDateRaw.includes('/')) {
-                    const parts = travelDateRaw.split('/').map(p => p.trim());
-                    if (parts.length === 3) travelDateRaw = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
-                }
-            } catch (e) { /* ignore and send raw */ }
-
-            const resp = await fetch(`/Reservation/GetSeatMap?flightId=${encodeURIComponent(flightId)}&travelDate=${encodeURIComponent(travelDateRaw)}`);
-            const data = await resp.json();
-
-            // render airplane-style rows
-            seatMap.innerHTML = '';
-            const seatGrid = document.createElement('div');
-            seatGrid.className = 'seatmap-airplane';
-
-            // determine class ranges: rows 1-10 First, 11-30 Business, 31+ Economy
-            const firstEnd = 10;
-            const businessEnd = 30;
-
-            data.rowsResult.forEach(r => {
-                // if this row should show a class header, insert it
-                const rowNum = Number(r.row);
-                if (!isNaN(rowNum)) {
-                    if (rowNum === 1) {
-                        const hdr = document.createElement('div');
-                        hdr.className = 'seat-class-header mb-2';
-                        hdr.textContent = 'First Class';
-                        seatGrid.appendChild(hdr);
-                    } else if (rowNum === firstEnd + 1) {
-                        const hdr = document.createElement('div');
-                        hdr.className = 'seat-class-header mb-2';
-                        hdr.textContent = 'Business Class';
-                        seatGrid.appendChild(hdr);
-                    } else if (rowNum === businessEnd + 1) {
-                        const hdr = document.createElement('div');
-                        hdr.className = 'seat-class-header mb-2';
-                        hdr.textContent = 'Economy Class';
-                        seatGrid.appendChild(hdr);
-                    }
-                }
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'seat-row d-flex align-items-center mb-2';
-
-                const rowLabel = document.createElement('div');
-                rowLabel.className = 'seat-row-label me-3 fw-bold';
-                rowLabel.textContent = r.row;
-                rowDiv.appendChild(rowLabel);
-
-                // wrap seats in a container so we can center them independent of the label width
-                const seatsContainer = document.createElement('div');
-                seatsContainer.className = 'seat-buttons d-flex flex-wrap align-items-center justify-content-center';
-
-                r.seats.forEach(s => {
-                    const seatBtn = document.createElement('button');
-                    seatBtn.type = 'button';
-                    seatBtn.className = 'btn btn-sm me-1';
-                    seatBtn.style.width = '56px';
-                    seatBtn.textContent = s.label;
-                    seatBtn.title = `${s.label} - ${s.cabin}`;
-                    if (s.available) {
-                        seatBtn.classList.add('btn-success');
-                        seatBtn.addEventListener('click', () => {
-                            document.querySelectorAll('#seatMap button').forEach(b => b.classList.remove('border-primary'));
-                            seatBtn.classList.add('border','border-primary');
-                            selectedSeatInput.value = s.label;
-                            // also set SelectedSeatId when the seat data includes a numeric id (persisted seats)
-                            const selectedSeatIdInput = document.getElementById('SelectedSeatId');
-                            if (selectedSeatIdInput) {
-                                // s.id may be a number (from persisted Seat) or a label string (legacy layout)
-                                const numeric = parseInt(s.id);
-                                if (!isNaN(numeric)) selectedSeatIdInput.value = numeric;
-                                else selectedSeatIdInput.value = '';
-                            }
-
-                            // set class based on row number
-                            const numericRow = parseInt(s.label, 10);
-                            let seatClass = 'Economy';
-                            if (!isNaN(numericRow)) {
-                                if (numericRow <= firstEnd) seatClass = 'First';
-                                else if (numericRow <= businessEnd) seatClass = 'Business';
-                                else seatClass = 'Economy';
-                            }
-                            // set visible select (disabled) and hidden input used for POST
-                            const classSelect = document.getElementById('ClassSelect');
-                            const classHidden = document.getElementById('ClassHidden');
-                            if (classSelect) {
-                                classSelect.value = seatClass;
-                            }
-                            if (classHidden) {
-                                classHidden.value = seatClass;
-                            }
-                        });
-                    } else {
-                        seatBtn.classList.add('btn-danger');
-                        seatBtn.disabled = true;
-                    }
-                    seatsContainer.appendChild(seatBtn);
-
-                    // insert aisle between C and D
-                    if (s.col === 'C') {
-                        const aisle = document.createElement('div');
-                        aisle.className = 'seat-aisle';
-                        seatsContainer.appendChild(aisle);
-                    }
-                });
-
-                rowDiv.appendChild(seatsContainer);
-                seatGrid.appendChild(rowDiv);
-            });
-
-            seatMap.appendChild(seatGrid);
-            container.style.display = '';
-            btn.textContent = 'Hide Seat Map';
+            await loadSeatMap();
         } else {
             container.style.display = 'none';
             btn.textContent = 'Select Seat';

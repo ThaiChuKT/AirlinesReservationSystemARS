@@ -4,6 +4,7 @@ namespace ARS.ViewModels
 {
     public class BookingViewModel
     {
+        // Legacy single-flight fields (for backward compatibility)
         public int FlightID { get; set; }
         public int? ScheduleID { get; set; }
         public string FlightNumber { get; set; } = string.Empty;
@@ -14,6 +15,10 @@ namespace ARS.ViewModels
         public DateOnly TravelDate { get; set; }
         public decimal BasePrice { get; set; }
         public decimal TotalPrice { get; set; }
+
+        // Multi-leg booking support
+        public List<BookingLegViewModel> Legs { get; set; } = new List<BookingLegViewModel>();
+        public bool IsMultiLeg => Legs != null && Legs.Any();
 
         [Required]
         [Range(0, 10)]

@@ -11,11 +11,13 @@ namespace ARS.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly ARS.Services.ISeatService _seatService;
 
-        public RefundController(ApplicationDbContext context, UserManager<User> userManager)
+        public RefundController(ApplicationDbContext context, UserManager<User> userManager, ARS.Services.ISeatService seatService)
         {
             _context = context;
             _userManager = userManager;
+            _seatService = seatService;
         }
 
         // GET: Refund/Cancel?reservationId=5
@@ -92,6 +94,7 @@ namespace ARS.Controllers
 
             var reservation = await _context.Reservations
                 .Include(r => r.Payments)
+                .Include(r => r.Legs)
                 .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
 
             if (reservation == null)
@@ -133,6 +136,24 @@ namespace ARS.Controllers
             };
 
             reservation.Status = "Cancelled";
+
+            // Release the seats using SeatService - for single-flight reservation
+            if (reservation.FlightSeatId.HasValue)
+            {
+                await _seatService.CancelReservationSeatAsync(reservation.ReservationID);
+            }
+
+            // Release seats for multi-leg reservations
+            if (reservation.Legs != null && reservation.Legs.Any())
+            {
+                foreach (var leg in reservation.Legs)
+                {
+                    if (leg.FlightSeatId.HasValue)
+                    {
+                        await _seatService.CancelReservationSeatForLegAsync(leg.ReservationLegID);
+                    }
+                }
+            }
 
             // Mark payments as refunded where applicable
             if (refundAmount > 0)

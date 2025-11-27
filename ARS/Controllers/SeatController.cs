@@ -42,6 +42,22 @@ namespace ARS.Controllers
             return Conflict(new { reserved = false, message = "Seat is no longer available" });
         }
 
+        public class ReserveForLegRequest
+        {
+            public int FlightSeatId { get; set; }
+            public int ReservationLegId { get; set; }
+        }
+
+        // POST: api/seat/reserve/leg
+        [HttpPost("reserve/leg")]
+        public async Task<IActionResult> ReserveForLeg([FromBody] ReserveForLegRequest req)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var ok = await _seatService.ReserveSeatForLegAsync(req.FlightSeatId, req.ReservationLegId);
+            if (ok) return Ok(new { reserved = true });
+            return Conflict(new { reserved = false, message = "Seat is no longer available or leg not found" });
+        }
+
         public class CancelRequest
         {
             public int ReservationId { get; set; }
@@ -55,6 +71,21 @@ namespace ARS.Controllers
             var ok = await _seatService.CancelReservationSeatAsync(req.ReservationId);
             if (ok) return Ok(new { cancelled = true });
             return NotFound(new { cancelled = false, message = "No flight seat found for reservation" });
+        }
+
+        public class CancelLegRequest
+        {
+            public int ReservationLegId { get; set; }
+        }
+
+        // POST: api/seat/cancel/leg
+        [HttpPost("cancel/leg")]
+        public async Task<IActionResult> CancelForLeg([FromBody] CancelLegRequest req)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var ok = await _seatService.CancelReservationSeatForLegAsync(req.ReservationLegId);
+            if (ok) return Ok(new { cancelled = true });
+            return NotFound(new { cancelled = false, message = "No flight seat found for reservation leg" });
         }
     }
 }

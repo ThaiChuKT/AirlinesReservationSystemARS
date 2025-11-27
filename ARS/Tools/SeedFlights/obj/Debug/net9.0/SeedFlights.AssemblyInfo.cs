@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SeedFlights")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fa26066c10c77950c04811903bc6910f769bfec3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f2b7376674e215adbd24e0d43d3dd85c4f313377")]
 [assembly: System.Reflection.AssemblyProductAttribute("SeedFlights")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SeedFlights")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

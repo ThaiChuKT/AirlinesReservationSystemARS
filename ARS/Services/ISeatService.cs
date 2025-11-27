@@ -21,6 +21,10 @@ namespace ARS.Services
         Task GenerateFlightSeatsAsync(int scheduleId);
         Task<List<FlightSeatDto>> GetAvailableSeatsAsync(int scheduleId);
         Task<bool> ReserveSeatAsync(int flightSeatId, int reservationId);
+        // Reserve a seat for a specific reservation leg (for multi-leg/round-trip support)
+        Task<bool> ReserveSeatForLegAsync(int flightSeatId, int reservationLegId);
         Task<bool> CancelReservationSeatAsync(int reservationId);
+        // Cancel a reservation seat for a specific reservation leg
+        Task<bool> CancelReservationSeatForLegAsync(int reservationLegId);
     }
 }

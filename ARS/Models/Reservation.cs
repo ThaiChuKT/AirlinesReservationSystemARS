@@ -12,13 +12,12 @@ namespace ARS.Models
         [ForeignKey("User")]
         public int UserID { get; set; }
 
-        [Required]
+        // Legacy single-flight fields (kept for backward compatibility, now nullable)
         [ForeignKey("Flight")]
-        public int FlightID { get; set; }
+        public int? FlightID { get; set; }
 
-        [Required]
         [ForeignKey("Schedule")]
-        public int ScheduleID { get; set; }
+        public int? ScheduleID { get; set; }
 
         [Required]
         public DateOnly BookingDate { get; set; }
@@ -66,5 +65,6 @@ namespace ARS.Models
         public virtual Schedule? Schedule { get; set; }
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public virtual ICollection<Refund> Refunds { get; set; } = new List<Refund>();
+        public virtual ICollection<ReservationLeg> Legs { get; set; } = new List<ReservationLeg>();
     }
 }

@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\86341\\OneDrive\\Tài liệu\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {}
+    "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {}
   },
   "projects": {
-    "C:\\Users\\86341\\OneDrive\\Tài liệu\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {
+    "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\86341\\OneDrive\\Tài liệu\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
+        "projectUniqueName": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
         "projectName": "ARS",
-        "projectPath": "C:\\Users\\86341\\OneDrive\\Tài liệu\\GitHub\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
-        "packagesPath": "C:\\Users\\86341\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\86341\\OneDrive\\Tài liệu\\GitHub\\AirlinesReservationSystemARS\\ARS\\obj\\",
+        "projectPath": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\ARS.csproj",
+        "packagesPath": "C:\\Users\\Kruwu\\.nuget\\packages\\",
+        "outputPath": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\86341\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Kruwu\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -84,7 +84,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.303/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

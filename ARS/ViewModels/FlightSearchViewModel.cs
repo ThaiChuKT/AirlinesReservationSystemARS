@@ -4,13 +4,11 @@ namespace ARS.ViewModels
 {
     public class FlightSearchViewModel
     {
-        [Required(ErrorMessage = "Please select origin city")]
         [Display(Name = "From")]
-        public int OriginCityID { get; set; }
+        public int? OriginCityID { get; set; }
 
-        [Required(ErrorMessage = "Please select destination city")]
         [Display(Name = "To")]
-        public int DestinationCityID { get; set; }
+        public int? DestinationCityID { get; set; }
 
         [Required(ErrorMessage = "Please select travel date")]
         [Display(Name = "Travel Date")]
@@ -33,6 +31,14 @@ namespace ARS.ViewModels
 
         // Multi-city legs (model binding supports indexed names like Legs[0].OriginCityID)
         public List<MultiCityLegViewModel>? Legs { get; set; }
+
+        // Pagination
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 8;
+
+        // Round-trip pagination
+        public int OutboundPage { get; set; } = 1;
+        public int ReturnPage { get; set; } = 1;
     }
 
     public class MultiCityLegViewModel

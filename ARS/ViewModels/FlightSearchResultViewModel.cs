@@ -14,6 +14,23 @@ namespace ARS.ViewModels
 
         // For multi-city: a list of result lists, one per leg
         public List<List<FlightResultItem>> LegsResults { get; set; } = new List<List<FlightResultItem>>();
+
+        // Pagination
+        public int TotalResults { get; set; }
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 8;
+        public int TotalPages => (int)Math.Ceiling((double)TotalResults / PageSize);
+
+        // Round-trip pagination
+        public int OutboundTotalResults { get; set; }
+        public int OutboundCurrentPage { get; set; } = 1;
+        public int OutboundPageSize { get; set; } = 2;
+        public int OutboundTotalPages => (int)Math.Ceiling((double)OutboundTotalResults / OutboundPageSize);
+
+        public int ReturnTotalResults { get; set; }
+        public int ReturnCurrentPage { get; set; } = 1;
+        public int ReturnPageSize { get; set; } = 2;
+        public int ReturnTotalPages => (int)Math.Ceiling((double)ReturnTotalResults / ReturnPageSize);
     }
 
     public class FlightResultItem

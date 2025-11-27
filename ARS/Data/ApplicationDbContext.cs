@@ -19,6 +19,7 @@ namespace ARS.Data
         public DbSet<Flight> Flights { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
         public DbSet<Reservation> Reservations { get; set; }
+        public DbSet<ReservationLeg> ReservationLegs { get; set; }
         public DbSet<FlightSeat> FlightSeats { get; set; }
     public DbSet<SeatLayout> SeatLayouts { get; set; }
     public DbSet<Seat> Seats { get; set; }
@@ -103,6 +104,31 @@ namespace ARS.Data
                 .HasOne(r => r.Seat)
                 .WithMany()
                 .HasForeignKey(r => r.SeatId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure ReservationLeg relationships
+            modelBuilder.Entity<ReservationLeg>()
+                .HasOne(rl => rl.Reservation)
+                .WithMany(r => r.Legs)
+                .HasForeignKey(rl => rl.ReservationID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ReservationLeg>()
+                .HasOne(rl => rl.Flight)
+                .WithMany()
+                .HasForeignKey(rl => rl.FlightID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ReservationLeg>()
+                .HasOne(rl => rl.Schedule)
+                .WithMany()
+                .HasForeignKey(rl => rl.ScheduleID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ReservationLeg>()
+                .HasOne(rl => rl.Seat)
+                .WithMany()
+                .HasForeignKey(rl => rl.SeatId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             // Configure Payment - Reservation relationship

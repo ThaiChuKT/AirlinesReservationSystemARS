@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj": {}
+    "C:\\Code\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj": {
+    "C:\\Code\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj",
+        "projectUniqueName": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj",
         "projectName": "QueryDb",
-        "projectPath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj",
-        "packagesPath": "C:\\Users\\Kruwul\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Kruwul\\Documents\\GitHub\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\obj\\",
+        "projectPath": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\QueryDb.csproj",
+        "packagesPath": "C:\\Users\\Kruwu\\.nuget\\packages\\",
+        "outputPath": "C:\\Code\\AirlinesReservationSystemARS\\ARS\\Tools\\QueryDb\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Kruwul\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Kruwu\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -60,30 +60,12 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[8.0.20, 8.0.20]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Host.win-x64",
-              "version": "[8.0.20, 8.0.20]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Ref",
-              "version": "[8.0.20, 8.0.20]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Ref",
-              "version": "[8.0.20, 8.0.20]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

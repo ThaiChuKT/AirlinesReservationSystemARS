@@ -82,4 +82,10 @@ LEFT JOIN Reservations r ON r.ReservationID = fs.ReservedByReservationID
 WHERE fs.ReservedByReservationID IS NOT NULL
 LIMIT 10;", showRows: true);
 
+Console.WriteLine("\nSample recent Reservations (up to 20):");
+await RunQuery("SELECT ReservationID, FlightID, ScheduleID, TravelDate, SeatId, SeatLabel, Status FROM Reservations ORDER BY ReservationID DESC LIMIT 20;", showRows: true);
+
+Console.WriteLine("\nSample recent ReservationLegs (up to 20):");
+await RunQuery("SELECT ReservationLegID, ReservationID, FlightID, ScheduleID, TravelDate, SeatId, SeatLabel FROM ReservationLegs ORDER BY ReservationLegID DESC LIMIT 20;", showRows: true);
+
 return 0;

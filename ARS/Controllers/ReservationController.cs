@@ -12,76 +12,169 @@ namespace ARS.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly ARS.Services.ISeatService _seatService;
 
-        public ReservationController(ApplicationDbContext context, UserManager<User> userManager)
+        public ReservationController(ApplicationDbContext context, UserManager<User> userManager, ARS.Services.ISeatService seatService)
         {
             _context = context;
             _userManager = userManager;
+            _seatService = seatService;
         }
 
         // GET: Reservation/Create
-        public async Task<IActionResult> Create(int flightId, int? scheduleId, DateOnly travelDate, int numAdults = 1, string classType = "Economy")
+        // Supports both single-flight and multi-leg bookings
+        // For single: flightId, scheduleId, travelDate
+        // For multi-leg: flightIds (comma-separated), scheduleIds (comma-separated), travelDates (comma-separated)
+        public async Task<IActionResult> Create(
+            int flightId = 0, 
+            int? scheduleId = null, 
+            DateOnly? travelDate = null, 
+            string? flightIds = null, 
+            string? scheduleIds = null, 
+            string? travelDates = null,
+            int numAdults = 1, 
+            string classType = "Economy")
         {
             // Check if user is logged in via Identity
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null)
             {
                 TempData["ErrorMessage"] = "Please login to book a flight.";
-                return RedirectToAction("Login", "Account", new { returnUrl = $"/Reservation/Create?flightId={flightId}&scheduleId={scheduleId}&travelDate={travelDate}&numAdults={numAdults}&classType={classType}" });
+                var returnUrl = !string.IsNullOrEmpty(flightIds) 
+                    ? $"/Reservation/Create?flightIds={flightIds}&scheduleIds={scheduleIds}&travelDates={travelDates}&numAdults={numAdults}&classType={classType}"
+                    : $"/Reservation/Create?flightId={flightId}&scheduleId={scheduleId}&travelDate={travelDate}&numAdults={numAdults}&classType={classType}";
+                return RedirectToAction("Login", "Account", new { returnUrl });
             }
 
-            var flight = await _context.Flights
-                .Include(f => f.OriginCity)
-                .Include(f => f.DestinationCity)
-                .FirstOrDefaultAsync(f => f.FlightID == flightId);
-
-            if (flight == null)
-            {
-                return NotFound();
-            }
-
-            // Use currentUser from Identity
             var user = currentUser;
-
-            // Calculate pricing
-            var daysBeforeDeparture = (travelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
-            var timingMultiplier = daysBeforeDeparture switch
-            {
-                >= 30 => 0.80m,
-                >= 15 => 1.00m,
-                >= 7 => 1.20m,
-                _ => 1.50m
-            };
-
-            var classMultiplier = classType switch
-            {
-                "Business" => 2.0m,
-                "First" => 3.5m,
-                _ => 1.0m
-            };
-
-            var basePrice = flight.BaseFare * classMultiplier * timingMultiplier;
-
             var model = new BookingViewModel
             {
-                FlightID = flightId,
-                ScheduleID = scheduleId,
-                FlightNumber = flight.FlightNumber,
-                Origin = flight.OriginCity?.CityName ?? "",
-                Destination = flight.DestinationCity?.CityName ?? "",
-                DepartureTime = flight.DepartureTime,
-                ArrivalTime = flight.ArrivalTime,
-                TravelDate = travelDate,
                 NumAdults = numAdults,
                 Class = classType,
-                BasePrice = basePrice,
-                TotalPrice = basePrice * numAdults,
-                // Pre-fill with logged-in user information
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email,
                 Phone = user.Phone
             };
+
+            // Determine if this is a multi-leg or single-leg booking
+            bool isMultiLeg = !string.IsNullOrEmpty(flightIds);
+
+            if (isMultiLeg)
+            {
+                // Parse comma-separated values
+                var flightIdList = flightIds!.Split(',').Select(int.Parse).ToList();
+                var scheduleIdList = scheduleIds?.Split(',').Select(s => string.IsNullOrEmpty(s) ? (int?)null : int.Parse(s)).ToList() ?? new List<int?>();
+                var travelDateList = travelDates!.Split(',').Select(DateOnly.Parse).ToList();
+
+                if (flightIdList.Count != travelDateList.Count)
+                {
+                    return BadRequest("Mismatch between number of flights and travel dates.");
+                }
+
+                decimal totalPrice = 0;
+                var classMultiplier = classType switch
+                {
+                    "Business" => 2.0m,
+                    "First" => 3.5m,
+                    _ => 1.0m
+                };
+
+                // Load all flights and create leg view models
+                for (int i = 0; i < flightIdList.Count; i++)
+                {
+                    var flight = await _context.Flights
+                        .Include(f => f.OriginCity)
+                        .Include(f => f.DestinationCity)
+                        .FirstOrDefaultAsync(f => f.FlightID == flightIdList[i]);
+
+                    if (flight == null)
+                    {
+                        return NotFound($"Flight with ID {flightIdList[i]} not found.");
+                    }
+
+                    var legTravelDate = travelDateList[i];
+                    var daysBeforeDeparture = (legTravelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                    var timingMultiplier = daysBeforeDeparture switch
+                    {
+                        >= 30 => 0.80m,
+                        >= 15 => 1.00m,
+                        >= 7 => 1.20m,
+                        _ => 1.50m
+                    };
+
+                    var basePrice = flight.BaseFare * classMultiplier * timingMultiplier;
+                    totalPrice += basePrice * numAdults;
+
+                    var leg = new BookingLegViewModel
+                    {
+                        FlightID = flight.FlightID,
+                        ScheduleID = i < scheduleIdList.Count ? scheduleIdList[i] : null,
+                        FlightNumber = flight.FlightNumber,
+                        Origin = flight.OriginCity?.CityName ?? "",
+                        Destination = flight.DestinationCity?.CityName ?? "",
+                        DepartureTime = flight.DepartureTime,
+                        ArrivalTime = flight.ArrivalTime,
+                        TravelDate = legTravelDate,
+                        BasePrice = basePrice,
+                        LegOrder = i + 1,
+                        Duration = flight.Duration,
+                        AircraftType = flight.AircraftType
+                    };
+
+                    model.Legs.Add(leg);
+                }
+
+                model.TotalPrice = totalPrice;
+            }
+            else
+            {
+                // Single-flight booking (legacy path)
+                if (flightId == 0 || !travelDate.HasValue)
+                {
+                    return BadRequest("Flight ID and travel date are required.");
+                }
+
+                var flight = await _context.Flights
+                    .Include(f => f.OriginCity)
+                    .Include(f => f.DestinationCity)
+                    .FirstOrDefaultAsync(f => f.FlightID == flightId);
+
+                if (flight == null)
+                {
+                    return NotFound();
+                }
+
+                // Calculate pricing
+                var daysBeforeDeparture = (travelDate.Value.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                var timingMultiplier = daysBeforeDeparture switch
+                {
+                    >= 30 => 0.80m,
+                    >= 15 => 1.00m,
+                    >= 7 => 1.20m,
+                    _ => 1.50m
+                };
+
+                var classMultiplier = classType switch
+                {
+                    "Business" => 2.0m,
+                    "First" => 3.5m,
+                    _ => 1.0m
+                };
+
+                var basePrice = flight.BaseFare * classMultiplier * timingMultiplier;
+
+                model.FlightID = flightId;
+                model.ScheduleID = scheduleId;
+                model.FlightNumber = flight.FlightNumber;
+                model.Origin = flight.OriginCity?.CityName ?? "";
+                model.Destination = flight.DestinationCity?.CityName ?? "";
+                model.DepartureTime = flight.DepartureTime;
+                model.ArrivalTime = flight.ArrivalTime;
+                model.TravelDate = travelDate.Value;
+                model.BasePrice = basePrice;
+                model.TotalPrice = basePrice * numAdults;
+            }
 
             return View(model);
         }
@@ -99,146 +192,383 @@ namespace ARS.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            if (!ModelState.IsValid)
+            // For single-leg bookings, enforce model validation strictly.
+            // For multi-leg bookings, key fields are populated server-side, so we allow
+            // some binding quirks (e.g. collection item binding) and proceed.
+            if (!ModelState.IsValid && !model.IsMultiLeg)
             {
                 return View(model);
             }
 
-            // Use the Identity user
             var user = currentUserPost;
 
-            // Load flight (needed to enforce booking cutoff and compute departure datetime)
-            var flight = await _context.Flights.FindAsync(model.FlightID);
-            if (flight == null)
-            {
-                ModelState.AddModelError(string.Empty, "Flight not found.");
-                return View(model);
-            }
-
-            // Enforce booking cutoff: bookings are closed 60 minutes before departure
+            // Use transaction to ensure atomicity for bookings
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            var transactionCommitted = false;
+            
+            // Track FlightSeatId for single-leg bookings (used after commit)
+            int? singleLegFlightSeatId = null;
+            
             try
             {
-                var departureDateTime = model.TravelDate.ToDateTime(TimeOnly.FromDateTime(flight.DepartureTime));
-                var cutoff = departureDateTime.AddMinutes(-60);
-                if (DateTime.Now >= cutoff)
+                var reservationsToAdd = new List<Reservation>();
+                bool isMultiLeg = model.IsMultiLeg;
+                Reservation? parentReservation = null;
+
+                if (isMultiLeg)
                 {
-                    ModelState.AddModelError(string.Empty, "Bookings for this flight are closed 60 minutes before departure.");
-                    // ensure model contains enough display info for the view
-                    model.FlightNumber = flight.FlightNumber;
-                    model.Origin = (await _context.Cities.FindAsync(flight.OriginCityID))?.CityName ?? string.Empty;
-                    model.Destination = (await _context.Cities.FindAsync(flight.DestinationCityID))?.CityName ?? string.Empty;
-                    model.DepartureTime = flight.DepartureTime;
-                    model.ArrivalTime = flight.ArrivalTime;
-                    return View(model);
+                    // Create a single parent reservation and attach ReservationLeg entries
+                    var orderedLegs = (model.Legs ?? new List<BookingLegViewModel>())
+                        .OrderBy(l => l.LegOrder)
+                        .ToList();
+
+                    if (!orderedLegs.Any())
+                    {
+                        ModelState.AddModelError(string.Empty, "No legs were provided for a multi-leg booking.");
+                        await transaction.RollbackAsync();
+                        return View(model);
+                    }
+
+                    parentReservation = new Reservation
+                    {
+                        UserID = user.Id,
+                        BookingDate = DateOnly.FromDateTime(DateTime.Now),
+                        Status = "Pending",
+                        NumAdults = model.NumAdults,
+                        NumChildren = model.NumChildren,
+                        NumSeniors = model.NumSeniors,
+                        Class = model.Class,
+                        ConfirmationNumber = GenerateConfirmationNumber(),
+                        BlockingNumber = GenerateBlockingNumber()
+                    };
+
+                    _context.Reservations.Add(parentReservation);
+                    await _context.SaveChangesAsync();
+
+                    var legsToAdd = new List<ReservationLeg>();
+
+                    foreach (var leg in orderedLegs)
+                    {
+                        var flight = await _context.Flights.FindAsync(leg.FlightID);
+                        if (flight == null)
+                        {
+                            ModelState.AddModelError(string.Empty, $"Flight {leg.FlightNumber} not found.");
+                            await transaction.RollbackAsync();
+                            return View(model);
+                        }
+
+                        // Enforce booking cutoff for this leg
+                        var departureDateTime = leg.TravelDate.ToDateTime(TimeOnly.FromDateTime(flight.DepartureTime));
+                        var cutoff = departureDateTime.AddMinutes(-60);
+                        if (DateTime.Now >= cutoff)
+                        {
+                            ModelState.AddModelError(string.Empty, $"Bookings for flight {leg.FlightNumber} are closed 60 minutes before departure.");
+                            await transaction.RollbackAsync();
+                            return View(model);
+                        }
+
+                        // Create or get schedule for this leg
+                        var schedule = await _context.Schedules
+                            .FirstOrDefaultAsync(s => s.FlightID == leg.FlightID && s.Date == leg.TravelDate);
+
+                        if (schedule == null)
+                        {
+                            schedule = new Schedule
+                            {
+                                FlightID = leg.FlightID,
+                                Date = leg.TravelDate,
+                                Status = "Scheduled"
+                            };
+                            _context.Schedules.Add(schedule);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        // For multi-leg: leg.SelectedSeatId now contains FlightSeatId (from the seat map)
+                        int? flightSeatIdForLeg = leg.SelectedSeatId; // This is actually FlightSeatId from the UI
+                        Seat? seatForLeg = null;
+                        
+                        if (!string.IsNullOrEmpty(leg.SelectedSeat))
+                        {
+                            // Look up by label (most reliable for multi-leg bookings)
+                            seatForLeg = await _context.Seats
+                                .FirstOrDefaultAsync(s => s.SeatLayoutId == flight.SeatLayoutId && s.Label == leg.SelectedSeat);
+                        }
+
+                        if (seatForLeg != null)
+                        {
+                            if (flight.SeatLayoutId.HasValue && seatForLeg.SeatLayoutId != flight.SeatLayoutId)
+                            {
+                                ModelState.AddModelError("SelectedSeat", $"Selected seat is not valid for flight {leg.FlightNumber}.");
+                                await transaction.RollbackAsync();
+                                return View(model);
+                            }
+
+                            // Check if the FlightSeat is already reserved
+                            if (flightSeatIdForLeg.HasValue)
+                            {
+                                var flightSeatTaken = await _context.FlightSeats
+                                    .AnyAsync(fs => fs.FlightSeatId == flightSeatIdForLeg.Value && 
+                                                   fs.Status == FlightSeatStatus.Reserved);
+                                
+                                if (flightSeatTaken)
+                                {
+                                    ModelState.AddModelError("SelectedSeat", $"Seat {seatForLeg.Label} on flight {leg.FlightNumber} has already been booked.");
+                                    await transaction.RollbackAsync();
+                                    return View(model);
+                                }
+                            }
+                        }
+
+                        var reservationLeg = new ReservationLeg
+                        {
+                            ReservationID = parentReservation.ReservationID,
+                            FlightID = leg.FlightID,
+                            ScheduleID = schedule.ScheduleID,
+                            TravelDate = leg.TravelDate,
+                            LegOrder = leg.LegOrder,
+                            SeatId = seatForLeg?.SeatId, // Store the actual Seat.SeatId for FK constraint
+                            FlightSeatId = flightSeatIdForLeg, // Store FlightSeatId here (will be used for reservation)
+                            SeatLabel = seatForLeg?.Label
+                        };
+
+                        legsToAdd.Add(reservationLeg);
+                    }
+
+                    _context.ReservationLegs.AddRange(legsToAdd);
                 }
-            }
-            catch
-            {
-                // if any error computing cutoff, proceed conservatively (do not block)
-            }
-
-            // Create or get schedule
-            var schedule = await _context.Schedules
-                .FirstOrDefaultAsync(s => s.FlightID == model.FlightID && s.Date == model.TravelDate);
-
-            if (schedule == null)
-            {
-                schedule = new Schedule
+                else
                 {
-                    FlightID = model.FlightID,
-                    Date = model.TravelDate,
-                    Status = "Scheduled"
-                };
-                _context.Schedules.Add(schedule);
-                await _context.SaveChangesAsync();
-            }
+                    // Single-leg booking (existing path)
+                    var flight = await _context.Flights.FindAsync(model.FlightID);
+                    if (flight == null)
+                    {
+                        ModelState.AddModelError(string.Empty, "Flight not found.");
+                        await transaction.RollbackAsync();
+                        return View(model);
+                    }
 
-            // Create reservation
-            var reservation = new Reservation
-            {
-                UserID = user.Id,
-                FlightID = model.FlightID,
-                ScheduleID = schedule.ScheduleID,
-                BookingDate = DateOnly.FromDateTime(DateTime.Now),
-                TravelDate = model.TravelDate,
-                Status = "Pending",
-                NumAdults = model.NumAdults,
-                NumChildren = model.NumChildren,
-                NumSeniors = model.NumSeniors,
-                Class = model.Class,
-                ConfirmationNumber = GenerateConfirmationNumber(),
-                BlockingNumber = GenerateBlockingNumber()
-            };
+                    // Enforce booking cutoff: bookings are closed 60 minutes before departure
+                    try
+                    {
+                        var departureDateTime = model.TravelDate.ToDateTime(TimeOnly.FromDateTime(flight.DepartureTime));
+                        var cutoff = departureDateTime.AddMinutes(-60);
+                        if (DateTime.Now >= cutoff)
+                        {
+                            ModelState.AddModelError(string.Empty, "Bookings for this flight are closed 60 minutes before departure.");
+                            await transaction.RollbackAsync();
+                            return View(model);
+                        }
+                    }
+                    catch
+                    {
+                        // if any error computing cutoff, proceed conservatively (do not block)
+                    }
 
-            // If the client selected a persisted seat id, validate and reserve it
-            if (model.SelectedSeatId.HasValue)
-            {
-                // flight already loaded above; reuse it to validate seat layout ownership
+                    // Create or get schedule
+                    var schedule = await _context.Schedules
+                        .FirstOrDefaultAsync(s => s.FlightID == model.FlightID && s.Date == model.TravelDate);
 
-                var seat = await _context.Seats.FindAsync(model.SelectedSeatId.Value);
-                if (seat == null)
-                {
-                    ModelState.AddModelError("SelectedSeat", "Selected seat not found.");
-                    return View(model);
+                    if (schedule == null)
+                    {
+                        schedule = new Schedule
+                        {
+                            FlightID = model.FlightID,
+                            Date = model.TravelDate,
+                            Status = "Scheduled"
+                        };
+                        _context.Schedules.Add(schedule);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    var reservationForLeg = new Reservation
+                    {
+                        UserID = user.Id,
+                        BookingDate = DateOnly.FromDateTime(DateTime.Now),
+                        Status = "Pending",
+                        NumAdults = model.NumAdults,
+                        NumChildren = model.NumChildren,
+                        NumSeniors = model.NumSeniors,
+                        Class = model.Class,
+                        ConfirmationNumber = GenerateConfirmationNumber(),
+                        BlockingNumber = GenerateBlockingNumber(),
+                        FlightID = model.FlightID,
+                        ScheduleID = schedule.ScheduleID,
+                        TravelDate = model.TravelDate
+                    };
+
+                    // For single-leg: SelectedSeatId now contains FlightSeatId from the seat map
+                    singleLegFlightSeatId = model.SelectedSeatId; // Store for later use
+                    Seat? selectedSeat = null;
+                    
+                    if (!string.IsNullOrEmpty(model.SelectedSeat))
+                    {
+                        // Look up the actual Seat by label
+                        selectedSeat = await _context.Seats
+                            .FirstOrDefaultAsync(s => s.SeatLayoutId == flight.SeatLayoutId && s.Label == model.SelectedSeat);
+                        
+                        if (selectedSeat == null)
+                        {
+                            ModelState.AddModelError("SelectedSeat", "Selected seat not found.");
+                            await transaction.RollbackAsync();
+                            return View(model);
+                        }
+
+                        // Ensure the seat belongs to the flight's seat layout
+                        if (flight.SeatLayoutId.HasValue && selectedSeat.SeatLayoutId != flight.SeatLayoutId)
+                        {
+                            ModelState.AddModelError("SelectedSeat", "Selected seat is not valid for this flight.");
+                            await transaction.RollbackAsync();
+                            return View(model);
+                        }
+
+                        // Check if the FlightSeat is already reserved
+                        if (singleLegFlightSeatId.HasValue)
+                        {
+                            var flightSeatTaken = await _context.FlightSeats
+                                .AnyAsync(fs => fs.FlightSeatId == singleLegFlightSeatId.Value && 
+                                               fs.Status == FlightSeatStatus.Reserved);
+                            
+                            if (flightSeatTaken)
+                            {
+                                ModelState.AddModelError("SelectedSeat", "That seat has just been booked by someone else. Please choose a different seat.");
+                                await transaction.RollbackAsync();
+                                return View(model);
+                            }
+                        }
+
+                        reservationForLeg.SeatId = selectedSeat.SeatId;
+                        reservationForLeg.SeatLabel = selectedSeat.Label;
+                    }
+
+                    reservationsToAdd.Add(reservationForLeg);
                 }
 
-                // Ensure the seat belongs to the flight's seat layout (if defined)
-                if (flight.SeatLayoutId.HasValue && seat.SeatLayoutId != flight.SeatLayoutId)
+                _context.Reservations.AddRange(reservationsToAdd);
+
+                // Ensure a legacy Users row exists for compatibility with existing FK in the database.
+                try
                 {
-                    ModelState.AddModelError("SelectedSeat", "Selected seat is not valid for this flight.");
-                    return View(model);
-                }
-
-                // Check if the seat is already taken for this schedule (excluding cancelled)
-                var seatTaken = await _context.Reservations
-                    .AnyAsync(r => r.ScheduleID == schedule.ScheduleID && r.SeatId == seat.SeatId && r.Status != "Cancelled");
-
-                if (seatTaken)
-                {
-                    ModelState.AddModelError("SelectedSeat", "That seat has just been booked by someone else. Please choose a different seat.");
-                    return View(model);
-                }
-
-                reservation.SeatId = seat.SeatId;
-                reservation.SeatLabel = seat.Label;
-            }
-
-            // Fallback: if only a label was provided (legacy), store it
-            else if (!string.IsNullOrEmpty(model.SelectedSeat))
-            {
-                reservation.SeatLabel = model.SelectedSeat;
-            }
-
-            _context.Reservations.Add(reservation);
-            // Ensure a legacy Users row exists for compatibility with existing FK in the database.
-            // Some databases have both AspNetUsers (Identity) and a legacy Users table. The Reservations
-            // table in some deployments enforces a FK to the legacy Users table as well, which will
-            // cause inserts to fail unless a corresponding Users row exists. Insert a lightweight
-            // legacy record if missing. Use an idempotent INSERT ... SELECT ... WHERE NOT EXISTS pattern.
-            try
-            {
-                await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    await _context.Database.ExecuteSqlInterpolatedAsync($@"
 INSERT INTO `Users` (`UserID`, `FirstName`, `LastName`, `Email`, `Password`, `Phone`, `Address`, `Gender`, `Age`, `CreditCardNumber`, `SkyMiles`, `Role`)
 SELECT {user.Id}, {user.FirstName}, {user.LastName}, {user.Email}, '', {user.Phone}, {user.Address}, {user.Gender.ToString()}, {user.Age}, {user.CreditCardNumber}, {user.SkyMiles}, 'Customer'
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
 " );
+                }
+                catch
+                {
+                    // If this insert fails (e.g. legacy Users table not present) continue
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                transactionCommitted = true;
+
+                Reservation firstReservation;
+                if (isMultiLeg)
+                {
+                    if (parentReservation == null)
+                    {
+                        // fallback: try to get a reservation created in this transaction
+                        firstReservation = await _context.Reservations.OrderByDescending(r => r.ReservationID).FirstAsync();
+                    }
+                    else
+                    {
+                        firstReservation = parentReservation;
+                    }
+                }
+                else
+                {
+                    firstReservation = reservationsToAdd.First();
+                }
+
+                // Preserve selected seat for single-leg path so it can be shown on the confirmation page.
+                if (!model.IsMultiLeg && !string.IsNullOrEmpty(model.SelectedSeat))
+                {
+                    TempData["SelectedSeat"] = model.SelectedSeat;
+                }
+
+                // After committing the parent reservation, attempt to reserve corresponding FlightSeat rows
+                try
+                {
+                    if (model.IsMultiLeg)
+                    {
+                        // multi-leg: find reservation legs and reserve matching flight seats
+                        var legs = await _context.ReservationLegs
+                            .Where(rl => rl.ReservationID == firstReservation.ReservationID)
+                            .ToListAsync();
+
+                        foreach (var rl in legs)
+                        {
+                            if (rl.FlightSeatId.HasValue)
+                            {
+                                // FlightSeatId contains the FlightSeat ID from the seat map selection
+                                int flightSeatId = rl.FlightSeatId.Value;
+                                await _seatService.ReserveSeatForLegAsync(flightSeatId, rl.ReservationLegID);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // single-leg: reserve the flight seat and create a ReservationLeg
+                        var res = await _context.Reservations.FindAsync(firstReservation.ReservationID);
+                        if (res != null && !string.IsNullOrEmpty(res.SeatLabel) && res.ScheduleID.HasValue && res.FlightID.HasValue)
+                        {
+                            // Look up the seat and FlightSeat by label
+                            var resFlight = await _context.Flights.FindAsync(res.FlightID.Value);
+                            Seat? resSeat = null;
+                            if (resFlight?.SeatLayoutId != null)
+                            {
+                                resSeat = await _context.Seats
+                                    .FirstOrDefaultAsync(s => s.SeatLayoutId == resFlight.SeatLayoutId && s.Label == res.SeatLabel);
+                            }
+                            
+                            // Create a ReservationLeg for single-leg booking to link FlightSeat
+                            var singleLeg = new ReservationLeg
+                            {
+                                ReservationID = res.ReservationID,
+                                FlightID = res.FlightID.Value,
+                                ScheduleID = res.ScheduleID.Value,
+                                TravelDate = res.TravelDate,
+                                SeatLabel = res.SeatLabel,
+                                SeatId = resSeat?.SeatId,
+                                FlightSeatId = singleLegFlightSeatId, // Use the FlightSeatId from UI
+                                LegOrder = 1
+                            };
+                            _context.ReservationLegs.Add(singleLeg);
+                            await _context.SaveChangesAsync();
+
+                            // Reserve the FlightSeat if we have the ID
+                            if (singleLegFlightSeatId.HasValue)
+                            {
+                                await _seatService.ReserveSeatForLegAsync(singleLegFlightSeatId.Value, singleLeg.ReservationLegID);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // If seat reservation fails here, it is non-fatal for the booking itself.
+                    // The seat may still be reserved via legacy label logic or can be corrected by the user.
+                }
+
+                return RedirectToAction(nameof(Confirmation), new { id = firstReservation.ReservationID });
             }
-            catch
+            catch (Exception ex)
             {
-                // If this insert fails (e.g. legacy Users table not present) continue and rely on the
-                // AspNetUsers FK (the database may not enforce the legacy FK in some environments).
+                if (!transactionCommitted)
+                {
+                    try { await transaction.RollbackAsync(); } catch { }
+                }
+
+                // Surface inner exception details to help diagnose data/constraint issues (e.g. DB update errors).
+                var detailedMessage = ex.InnerException != null
+                    ? $"{ex.Message} Inner: {ex.InnerException.Message}"
+                    : ex.Message;
+
+                ModelState.AddModelError(string.Empty, $"An error occurred while creating the reservation: {detailedMessage}");
+                return View(model);
             }
-
-            await _context.SaveChangesAsync();
-
-            // Preserve selected seat (if provided) so it can be shown on the confirmation page.
-            if (!string.IsNullOrEmpty(model.SelectedSeat))
-            {
-                TempData["SelectedSeat"] = model.SelectedSeat;
-            }
-
-            return RedirectToAction(nameof(Confirmation), new { id = reservation.ReservationID });
         }
 
         // GET: Reservation/Confirmation/5
@@ -256,6 +586,12 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .Include(r => r.Flight)
                     .ThenInclude(f => f.DestinationCity)
                 .Include(r => r.Schedule)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Flight)
+                        .ThenInclude(f => f.OriginCity)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Flight)
+                        .ThenInclude(f => f.DestinationCity)
                 .FirstOrDefaultAsync(m => m.ReservationID == id);
 
             if (reservation == null)
@@ -266,18 +602,33 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
             return View(reservation);
         }
 
-        // GET: Reservation/GetSeatMap?flightId=1&travelDate=2025-11-16
-        [HttpGet]
-        public async Task<IActionResult> GetSeatMap(int flightId, DateOnly travelDate)
-        {
-            var flight = await _context.Flights
-                .FirstOrDefaultAsync(f => f.FlightID == flightId);
-
-            if (flight == null) return NotFound();
-
-            // If the flight references a SeatLayout, use the persisted seats
-            if (flight.SeatLayoutId.HasValue)
+            // GET: Reservation/GetSeatMap?flightId=1&travelDate=2025-11-16
+            [HttpGet]
+            public async Task<IActionResult> GetSeatMap(int flightId, DateOnly travelDate, int? scheduleId = null)
             {
+                var flight = await _context.Flights
+                    .FirstOrDefaultAsync(f => f.FlightID == flightId);
+
+                if (flight == null) return NotFound();
+
+                // Ensure flight has a SeatLayout - if not, assign the default one (ID=1)
+                if (!flight.SeatLayoutId.HasValue)
+                {
+                    // Check if default SeatLayout exists
+                    var defaultLayout = await _context.SeatLayouts.FirstOrDefaultAsync();
+                    if (defaultLayout != null)
+                    {
+                        flight.SeatLayoutId = defaultLayout.SeatLayoutId;
+                        _context.Flights.Update(flight);
+                        await _context.SaveChangesAsync();
+                        System.Diagnostics.Debug.WriteLine($"Assigned SeatLayout {defaultLayout.SeatLayoutId} to Flight {flightId}");
+                    }
+                    else
+                    {
+                        return NotFound(new { error = "No seat layouts configured in the system." });
+                    }
+                }
+
                 var seats = await _context.Seats
                     .Where(s => s.SeatLayoutId == flight.SeatLayoutId.Value)
                     .OrderBy(s => s.RowNumber)
@@ -285,14 +636,43 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                     .ToListAsync();
 
                 // find schedule for the date (if exists)
-                var schedule = await _context.Schedules.FirstOrDefaultAsync(s => s.FlightID == flightId && s.Date == travelDate);
-                var reservedIds = new HashSet<int>();
+                Schedule? schedule = null;
+                if (scheduleId.HasValue)
+                {
+                    schedule = await _context.Schedules.FirstOrDefaultAsync(s => s.ScheduleID == scheduleId.Value);
+                }
+                else
+                {
+                    schedule = await _context.Schedules.FirstOrDefaultAsync(s => s.FlightID == flightId && s.Date == travelDate);
+                }
+
+                // Ensure FlightSeats exist for this schedule
                 if (schedule != null)
                 {
-                    reservedIds = await _context.Reservations
-                        .Where(r => r.ScheduleID == schedule.ScheduleID && r.Status != "Cancelled" && r.SeatId != null)
-                        .Select(r => r.SeatId!.Value)
-                        .ToHashSetAsync();
+                    await _seatService.GenerateFlightSeatsAsync(schedule.ScheduleID);
+                }
+
+                var reservedFlightSeatIds = new HashSet<int>();
+                if (schedule != null)
+                {
+                    // Get reserved FlightSeat IDs (not Seat IDs)
+                    var reservedFSIds = await _context.FlightSeats
+                        .Where(fs => fs.ScheduleId == schedule.ScheduleID && 
+                                    fs.Status == FlightSeatStatus.Reserved)
+                        .Select(fs => fs.FlightSeatId)
+                        .ToListAsync();
+
+                    reservedFlightSeatIds = reservedFSIds.ToHashSet();
+                }
+
+                // Get all FlightSeats for this schedule to map Seat -> FlightSeat
+                var flightSeatsMap = new Dictionary<int, int>();
+                if (schedule != null)
+                {
+                    var allFlightSeats = await _context.FlightSeats
+                        .Where(fs => fs.ScheduleId == schedule.ScheduleID)
+                        .ToListAsync();
+                    flightSeatsMap = allFlightSeats.ToDictionary(fs => fs.SeatId, fs => fs.FlightSeatId);
                 }
 
                 var rowsResult = seats
@@ -303,91 +683,21 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                         row = g.Key,
                         seats = g.Select(s => new
                         {
-                            id = s.SeatId,
+                            id = flightSeatsMap.ContainsKey(s.SeatId) ? flightSeatsMap[s.SeatId] : 0,
                             label = s.Label,
                             col = s.Column,
                             row = s.RowNumber,
                             cabin = s.CabinClass.ToString(),
-                            available = !reservedIds.Contains(s.SeatId)
+                            available = flightSeatsMap.ContainsKey(s.SeatId) && !reservedFlightSeatIds.Contains(flightSeatsMap[s.SeatId])
                         }).ToList()
                     }).ToList();
 
                 // seats per row is variable; include max count
                 var seatsPerRow = seats.GroupBy(s => s.RowNumber).Select(g => g.Count()).DefaultIfEmpty(0).Max();
                 var rows = rowsResult.Count;
+                
+                System.Diagnostics.Debug.WriteLine($"GetSeatMap: Using SeatLayout {flight.SeatLayoutId} for flight {flightId}, schedule {schedule?.ScheduleID}");
                 return Json(new { rows, seatsPerRow, rowsResult });
-            }
-
-            // fallback to the legacy heuristic layout if no SeatLayout is configured
-            var totalSeats = flight.TotalSeats;
-
-            // Improved layout: 6 seats per row (A-F) with an aisle between C and D.
-            var seatsPerRowLegacy = 6;
-            var rowsLegacy = (int)Math.Ceiling(totalSeats / (double)seatsPerRowLegacy);
-
-            // Number of booked seats for that date (not including cancelled)
-            var bookedCount = _context.Reservations.Where(r => r.FlightID == flightId && r.TravelDate == travelDate && r.Status != "Cancelled").Count();
-            // Also collect any explicit seat labels that were selected so we can mark those unavailable
-            var reservedLabels = _context.Reservations
-                .Where(r => r.FlightID == flightId && r.TravelDate == travelDate && r.Status != "Cancelled" && r.SeatLabel != null)
-                .Select(r => r.SeatLabel!)
-                .ToHashSet();
-
-            // Determine cabin splits: first class (front few rows), business (next), economy (rest)
-            var firstRows = Math.Max(1, rowsLegacy / 10); // ~10% front
-            var businessRows = Math.Max(1, rowsLegacy / 5); // ~20% next
-
-            var letters = new[] { 'A', 'B', 'C', 'D', 'E', 'F' };
-            var allSeats = new List<(string Id, int Row, string Col)>();
-            var idx = 0;
-            for (var r = 1; r <= rowsLegacy; r++)
-            {
-                for (var c = 0; c < seatsPerRowLegacy; c++)
-                {
-                    if (idx >= totalSeats) break;
-                    var label = $"{r}{letters[c]}";
-                    allSeats.Add((label, r, letters[c].ToString()));
-                    idx++;
-                }
-            }
-
-            // Mark occupied seats starting from the back of the plane (rear-filled)
-            // But avoid double-counting seats that were explicitly selected and recorded via SeatLabel.
-            var occupiedSet = new HashSet<string>();
-            // reservedLabels contains explicit labels from reservations (may be empty)
-            var reservedLabelsLocal = reservedLabels ?? new HashSet<string>();
-            // Number of seats we still need to mark heuristically after accounting for explicit labels
-            var remainingToMark = Math.Max(0, bookedCount - reservedLabelsLocal.Count);
-            for (int j = allSeats.Count - 1; j >= 0 && remainingToMark > 0; j--)
-            {
-                var s = allSeats[j];
-                if (reservedLabelsLocal.Contains(s.Id)) continue; // skip already explicitly reserved labels
-                occupiedSet.Add(s.Id);
-                remainingToMark--;
-            }
-
-            var rowsResultLegacy = new List<object>();
-            foreach (var group in allSeats.GroupBy(s => s.Row).OrderBy(g => g.Key))
-            {
-                var rowNum = group.Key;
-                string cabin = "Economy";
-                if (rowNum <= firstRows) cabin = "First";
-                else if (rowNum <= firstRows + businessRows) cabin = "Business";
-
-                var seatObjs = group.Select(s => new
-                {
-                    id = s.Id,
-                    label = s.Id,
-                    col = s.Col,
-                    row = s.Row,
-                    cabin,
-                    available = !occupiedSet.Contains(s.Id) && !reservedLabels.Contains(s.Id)
-                }).ToList();
-
-                rowsResultLegacy.Add(new { row = rowNum, seats = seatObjs });
-            }
-
-            return Json(new { rows = rowsLegacy, seatsPerRow = seatsPerRowLegacy, rowsResult = rowsResultLegacy });
         }
 
         // GET: Reservation/MyReservations
@@ -408,6 +718,12 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .Include(r => r.Flight)
                     .ThenInclude(f => f.DestinationCity)
                 .Include(r => r.Schedule)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Flight)
+                        .ThenInclude(f => f.OriginCity)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Flight)
+                        .ThenInclude(f => f.DestinationCity)
                 .Where(r => r.UserID == currentUserList.Id)
                 .OrderByDescending(r => r.BookingDate)
                 .ToListAsync();
@@ -438,6 +754,16 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 .Include(r => r.Flight)
                     .ThenInclude(f => f.DestinationCity)
                 .Include(r => r.Schedule)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Flight)
+                        .ThenInclude(f => f.OriginCity)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Flight)
+                        .ThenInclude(f => f.DestinationCity)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Schedule)
+                .Include(r => r.Legs)
+                    .ThenInclude(rl => rl.Seat)
                 .Include(r => r.Payments)
                 .Include(r => r.Refunds)
                 .FirstOrDefaultAsync(m => m.ReservationID == id);
@@ -527,17 +853,12 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 var schedule = f.Schedules.FirstOrDefault(s => s.Date == newDate);
                 if (schedule == null) continue;
 
-                var bookedSeats = f.Reservations
-                    .Where(r => r.TravelDate == newDate && r.Status != "Cancelled")
-                    .Sum(r => r.NumAdults + r.NumChildren + r.NumSeniors);
-
-                // If the current reservation occupies seats on the same flight/date, exclude it from the count
-                if (reservation.FlightID == f.FlightID && reservation.TravelDate == newDate)
-                {
-                    bookedSeats -= (reservation.NumAdults + reservation.NumChildren + reservation.NumSeniors);
-                }
-
-                var availableSeats = f.TotalSeats - bookedSeats;
+                // Calculate available seats from FlightSeats table
+                await _seatService.GenerateFlightSeatsAsync(schedule.ScheduleID);
+                var reservedCount = await _context.FlightSeats
+                    .Where(fs => fs.ScheduleId == schedule.ScheduleID && fs.Status == FlightSeatStatus.Reserved)
+                    .CountAsync();
+                var availableSeats = f.TotalSeats - reservedCount;
                 if (availableSeats < passengers) continue;
 
                 // Pricing
