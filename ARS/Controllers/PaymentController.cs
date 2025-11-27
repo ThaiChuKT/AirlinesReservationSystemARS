@@ -12,12 +12,14 @@ namespace ARS.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly ARS.Services.IEmailService _emailService;
 
-        public PaymentController(ApplicationDbContext context, UserManager<User> userManager, IConfiguration configuration)
+        public PaymentController(ApplicationDbContext context, UserManager<User> userManager, IConfiguration configuration, ARS.Services.IEmailService emailService)
         {
             _context = context;
             _userManager = userManager;
             _configuration = configuration;
+            _emailService = emailService;
         }
 
         // GET: Payment/Index?reservationId=7
@@ -209,6 +211,54 @@ namespace ARS.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Send payment confirmation email
+            try
+            {
+                Console.WriteLine($"[PAYMENT DEBUG] Attempting to send payment confirmation email...");
+                var user = await _userManager.FindByIdAsync(reservation.UserID.ToString());
+                if (user != null)
+                {
+                    Console.WriteLine($"[PAYMENT DEBUG] Found user {user.Email}");
+                    var fullReservation = await _context.Reservations
+                        .Include(r => r.Flight)
+                            .ThenInclude(f => f!.OriginCity)
+                        .Include(r => r.Flight)
+                            .ThenInclude(f => f!.DestinationCity)
+                        .Include(r => r.Legs)
+                            .ThenInclude(l => l.Flight)
+                                .ThenInclude(f => f!.OriginCity)
+                        .Include(r => r.Legs)
+                            .ThenInclude(l => l.Flight)
+                                .ThenInclude(f => f!.DestinationCity)
+                        .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
+
+                    if (fullReservation != null)
+                    {
+                        Console.WriteLine($"[PAYMENT DEBUG] Found reservation {fullReservation.ReservationID}");
+                        var totalAmount = pendingPayments.Sum(p => p.Amount);
+                        Console.WriteLine($"[PAYMENT DEBUG] Building payment confirmation email, amount: ${totalAmount}");
+                        var emailBody = BuildPaymentConfirmationEmail(fullReservation, user, totalAmount, orderId);
+                        Console.WriteLine($"[PAYMENT DEBUG] Sending payment email to {user.Email}");
+                        await _emailService.SendAsync(user.Email, "Payment Confirmation - ARS Airlines", emailBody);
+                        Console.WriteLine($"[PAYMENT DEBUG] Email send method completed");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[PAYMENT DEBUG] Reservation not found");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[PAYMENT DEBUG] User not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail the payment if email fails
+                Console.WriteLine($"[PAYMENT ERROR] Failed to send payment confirmation email: {ex.Message}");
+                Console.WriteLine($"[PAYMENT ERROR] Stack trace: {ex.StackTrace}");
+            }
+
             return Json(new { 
                 success = true, 
                 message = "Payment processed successfully",
@@ -223,6 +273,71 @@ namespace ARS.Controllers
         {
             TempData["InfoMessage"] = "Payment was cancelled.";
             return RedirectToAction("Details", "Reservation", new { id = reservationId });
+        }
+
+        private string BuildPaymentConfirmationEmail(Reservation reservation, User user, decimal amount, string transactionId)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Dear {user.FirstName} {user.LastName},");
+            sb.AppendLine();
+            sb.AppendLine("Thank you for your payment! Your booking has been confirmed.");
+            sb.AppendLine();
+            sb.AppendLine("PAYMENT DETAILS:");
+            sb.AppendLine($"Transaction ID: {transactionId}");
+            sb.AppendLine($"Amount Paid: ${amount:F2}");
+            sb.AppendLine($"Payment Date: {DateTime.Now:yyyy-MM-dd HH:mm}");
+            sb.AppendLine($"Payment Method: PayPal");
+            sb.AppendLine();
+            sb.AppendLine("RESERVATION DETAILS:");
+            sb.AppendLine($"Confirmation Number: {reservation.ConfirmationNumber}");
+            sb.AppendLine($"Reservation Status: {reservation.Status}");
+            sb.AppendLine($"Passengers: {reservation.NumAdults} Adult(s), {reservation.NumChildren} Child(ren), {reservation.NumSeniors} Senior(s)");
+            sb.AppendLine($"Class: {reservation.Class}");
+            
+            if (reservation.Legs != null && reservation.Legs.Any())
+            {
+                sb.AppendLine();
+                sb.AppendLine("FLIGHT ITINERARY (Multi-Leg Journey):");
+                int legNum = 1;
+                foreach (var leg in reservation.Legs.OrderBy(l => l.TravelDate))
+                {
+                    sb.AppendLine($"\nLeg {legNum}:");
+                    sb.AppendLine($"  Flight: {leg.Flight?.FlightNumber}");
+                    sb.AppendLine($"  Route: {leg.Flight?.OriginCity?.CityName} → {leg.Flight?.DestinationCity?.CityName}");
+                    sb.AppendLine($"  Date: {leg.TravelDate:yyyy-MM-dd}");
+                    sb.AppendLine($"  Departure: {leg.Flight?.DepartureTime:yyyy-MM-dd HH:mm}");
+                    sb.AppendLine($"  Arrival: {leg.Flight?.ArrivalTime:yyyy-MM-dd HH:mm}");
+                    if (!string.IsNullOrEmpty(leg.SeatLabel))
+                    {
+                        sb.AppendLine($"  Seat: {leg.SeatLabel}");
+                    }
+                    legNum++;
+                }
+            }
+            else if (reservation.Flight != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("FLIGHT DETAILS:");
+                sb.AppendLine($"Flight Number: {reservation.Flight.FlightNumber}");
+                sb.AppendLine($"Route: {reservation.Flight.OriginCity?.CityName} → {reservation.Flight.DestinationCity?.CityName}");
+                sb.AppendLine($"Travel Date: {reservation.TravelDate:yyyy-MM-dd}");
+                sb.AppendLine($"Departure: {reservation.Flight.DepartureTime:yyyy-MM-dd HH:mm}");
+                sb.AppendLine($"Arrival: {reservation.Flight.ArrivalTime:yyyy-MM-dd HH:mm}");
+                if (!string.IsNullOrEmpty(reservation.SeatLabel))
+                {
+                    sb.AppendLine($"Seat: {reservation.SeatLabel}");
+                }
+            }
+            
+            sb.AppendLine();
+            sb.AppendLine("Please arrive at the airport at least 2 hours before departure.");
+            sb.AppendLine();
+            sb.AppendLine("Thank you for choosing ARS Airlines!");
+            sb.AppendLine();
+            sb.AppendLine("Best regards,");
+            sb.AppendLine("ARS Airlines Team");
+            
+            return sb.ToString();
         }
     }
 }

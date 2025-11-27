@@ -74,6 +74,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Register seat service
 builder.Services.AddScoped<ARS.Services.ISeatService, ARS.Services.SeatService>();
+// Register email service
+builder.Services.AddScoped<ARS.Services.IEmailService, ARS.Services.GmailEmailService>();
 // Register background service to cleanup past schedules and flights
 builder.Services.AddHostedService<ARS.Services.FlightCleanupService>();
 

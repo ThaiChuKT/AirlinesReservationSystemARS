@@ -13,12 +13,14 @@ namespace ARS.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly ARS.Services.ISeatService _seatService;
+        private readonly ARS.Services.IEmailService _emailService;
 
-        public ReservationController(ApplicationDbContext context, UserManager<User> userManager, ARS.Services.ISeatService seatService)
+        public ReservationController(ApplicationDbContext context, UserManager<User> userManager, ARS.Services.ISeatService seatService, ARS.Services.IEmailService emailService)
         {
             _context = context;
             _userManager = userManager;
             _seatService = seatService;
+            _emailService = emailService;
         }
 
         // GET: Reservation/Create
@@ -379,6 +381,30 @@ namespace ARS.Controllers
                     }
 
                     _context.ReservationLegs.AddRange(legsToAdd);
+                    await _context.SaveChangesAsync();
+                    
+                    // Send booking confirmation email for multi-leg after legs are created
+                    try
+                    {
+                        Console.WriteLine($"[BOOKING DEBUG] Attempting to send multi-leg booking email...");
+                        if (parentReservation != null && totalMultiLegPrice > 0)
+                        {
+                            Console.WriteLine($"[BOOKING DEBUG] Building email for reservation {parentReservation.ReservationID}");
+                            var emailBody = BuildBookingConfirmationEmail(parentReservation, user, legsToAdd, totalMultiLegPrice);
+                            Console.WriteLine($"[BOOKING DEBUG] Email body built, sending to {user.Email}");
+                            await _emailService.SendAsync(user.Email, "Booking Confirmation - ARS Airlines", emailBody);
+                            Console.WriteLine($"[BOOKING DEBUG] Email send method completed");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[BOOKING DEBUG] Skipped email - parentReservation null: {parentReservation == null}, totalPrice: {totalMultiLegPrice}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[BOOKING ERROR] Failed to send booking confirmation email: {ex.Message}");
+                        Console.WriteLine($"[BOOKING ERROR] Stack trace: {ex.StackTrace}");
+                    }
                 }
                 else
                 {
@@ -636,6 +662,70 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 {
                     // If seat reservation fails here, it is non-fatal for the booking itself.
                     // The seat may still be reserved via legacy label logic or can be corrected by the user.
+                }
+
+                // Send booking confirmation email
+                try
+                {
+                    Console.WriteLine($"[BOOKING DEBUG] Attempting to send single-leg booking email...");
+                    var fullReservation = await _context.Reservations
+                        .Include(r => r.Flight)
+                            .ThenInclude(f => f!.OriginCity)
+                        .Include(r => r.Flight)
+                            .ThenInclude(f => f!.DestinationCity)
+                        .Include(r => r.Legs)
+                            .ThenInclude(l => l.Flight)
+                                .ThenInclude(f => f!.OriginCity)
+                        .Include(r => r.Legs)
+                            .ThenInclude(l => l.Flight)
+                                .ThenInclude(f => f!.DestinationCity)
+                        .Include(r => r.Payments)
+                        .FirstOrDefaultAsync(r => r.ReservationID == firstReservation.ReservationID);
+
+                    if (fullReservation != null)
+                    {
+                        Console.WriteLine($"[BOOKING DEBUG] Found reservation {fullReservation.ReservationID}");
+                        var totalAmount = fullReservation.Payments?.FirstOrDefault()?.Amount ?? 0;
+                        string emailBody;
+                        
+                        if (fullReservation.Legs != null && fullReservation.Legs.Any())
+                        {
+                            Console.WriteLine($"[BOOKING DEBUG] Building multi-leg email for {fullReservation.Legs.Count} legs");
+                            emailBody = BuildBookingConfirmationEmail(fullReservation, user, fullReservation.Legs.ToList(), totalAmount);
+                            Console.WriteLine($"[BOOKING DEBUG] Sending multi-leg email to {user.Email}");
+                            await _emailService.SendAsync(user.Email, "Booking Confirmation - ARS Airlines", emailBody);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[BOOKING DEBUG] Single-leg booking detected");
+                            var flight = fullReservation.Flight ?? await _context.Flights
+                                .Include(f => f.OriginCity)
+                                .Include(f => f.DestinationCity)
+                                .FirstOrDefaultAsync(f => f.FlightID == fullReservation.FlightID);
+                            
+                            if (flight != null)
+                            {
+                                Console.WriteLine($"[BOOKING DEBUG] Building single-leg email");
+                                emailBody = BuildBookingConfirmationEmailSingle(fullReservation, user, flight, totalAmount);
+                                Console.WriteLine($"[BOOKING DEBUG] Sending single-leg email to {user.Email}");
+                                await _emailService.SendAsync(user.Email, "Booking Confirmation - ARS Airlines", emailBody);
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[BOOKING DEBUG] Flight not found for single-leg email");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[BOOKING DEBUG] Full reservation not found");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Don't fail the booking if email fails
+                    Console.WriteLine($"[BOOKING ERROR] Failed to send booking confirmation email: {ex.Message}");
+                    Console.WriteLine($"[BOOKING ERROR] Stack trace: {ex.StackTrace}");
                 }
 
                 return RedirectToAction(nameof(Confirmation), new { id = firstReservation.ReservationID });
@@ -1425,6 +1515,98 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
         private string GenerateBlockingNumber()
         {
             return $"BLK{DateTime.Now:yyyyMMddHHmmss}";
+        }
+
+        private string BuildBookingConfirmationEmail(Reservation reservation, User user, List<ReservationLeg> legs, decimal totalAmount)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Dear {user.FirstName} {user.LastName},");
+            sb.AppendLine();
+            sb.AppendLine("Thank you for booking with ARS Airlines! Your reservation has been created.");
+            sb.AppendLine();
+            sb.AppendLine("RESERVATION DETAILS:");
+            sb.AppendLine($"Confirmation Number: {reservation.ConfirmationNumber}");
+            sb.AppendLine($"Booking Number: {reservation.BlockingNumber}");
+            sb.AppendLine($"Reservation Status: {reservation.Status}");
+            sb.AppendLine($"Passengers: {reservation.NumAdults} Adult(s), {reservation.NumChildren} Child(ren), {reservation.NumSeniors} Senior(s)");
+            sb.AppendLine($"Class: {reservation.Class}");
+            sb.AppendLine();
+            sb.AppendLine("FLIGHT ITINERARY (Multi-Leg Journey):");
+            
+            int legNum = 1;
+            foreach (var leg in legs.OrderBy(l => l.TravelDate))
+            {
+                sb.AppendLine($"\nLeg {legNum}:");
+                sb.AppendLine($"  Flight: {leg.Flight?.FlightNumber}");
+                sb.AppendLine($"  Route: {leg.Flight?.OriginCity?.CityName} → {leg.Flight?.DestinationCity?.CityName}");
+                sb.AppendLine($"  Date: {leg.TravelDate:yyyy-MM-dd}");
+                sb.AppendLine($"  Departure: {leg.Flight?.DepartureTime:yyyy-MM-dd HH:mm}");
+                sb.AppendLine($"  Arrival: {leg.Flight?.ArrivalTime:yyyy-MM-dd HH:mm}");
+                if (!string.IsNullOrEmpty(leg.SeatLabel))
+                {
+                    sb.AppendLine($"  Seat: {leg.SeatLabel}");
+                }
+                legNum++;
+            }
+            
+            sb.AppendLine();
+            sb.AppendLine($"TOTAL AMOUNT: ${totalAmount:F2}");
+            sb.AppendLine();
+            sb.AppendLine("NEXT STEPS:");
+            sb.AppendLine("1. Complete your payment to confirm your booking");
+            sb.AppendLine("2. You will receive a payment confirmation email once payment is completed");
+            sb.AppendLine("3. Please arrive at the airport at least 2 hours before departure");
+            sb.AppendLine();
+            sb.AppendLine("You can view and manage your reservation by logging into your account.");
+            sb.AppendLine();
+            sb.AppendLine("Thank you for choosing ARS Airlines!");
+            sb.AppendLine();
+            sb.AppendLine("Best regards,");
+            sb.AppendLine("ARS Airlines Team");
+            
+            return sb.ToString();
+        }
+
+        private string BuildBookingConfirmationEmailSingle(Reservation reservation, User user, Flight flight, decimal totalAmount)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Dear {user.FirstName} {user.LastName},");
+            sb.AppendLine();
+            sb.AppendLine("Thank you for booking with ARS Airlines! Your reservation has been created.");
+            sb.AppendLine();
+            sb.AppendLine("RESERVATION DETAILS:");
+            sb.AppendLine($"Confirmation Number: {reservation.ConfirmationNumber}");
+            sb.AppendLine($"Booking Number: {reservation.BlockingNumber}");
+            sb.AppendLine($"Reservation Status: {reservation.Status}");
+            sb.AppendLine($"Passengers: {reservation.NumAdults} Adult(s), {reservation.NumChildren} Child(ren), {reservation.NumSeniors} Senior(s)");
+            sb.AppendLine($"Class: {reservation.Class}");
+            sb.AppendLine();
+            sb.AppendLine("FLIGHT DETAILS:");
+            sb.AppendLine($"Flight Number: {flight.FlightNumber}");
+            sb.AppendLine($"Route: {flight.OriginCity?.CityName} → {flight.DestinationCity?.CityName}");
+            sb.AppendLine($"Travel Date: {reservation.TravelDate:yyyy-MM-dd}");
+            sb.AppendLine($"Departure: {flight.DepartureTime:yyyy-MM-dd HH:mm}");
+            sb.AppendLine($"Arrival: {flight.ArrivalTime:yyyy-MM-dd HH:mm}");
+            if (!string.IsNullOrEmpty(reservation.SeatLabel))
+            {
+                sb.AppendLine($"Seat: {reservation.SeatLabel}");
+            }
+            sb.AppendLine();
+            sb.AppendLine($"TOTAL AMOUNT: ${totalAmount:F2}");
+            sb.AppendLine();
+            sb.AppendLine("NEXT STEPS:");
+            sb.AppendLine("1. Complete your payment to confirm your booking");
+            sb.AppendLine("2. You will receive a payment confirmation email once payment is completed");
+            sb.AppendLine("3. Please arrive at the airport at least 2 hours before departure");
+            sb.AppendLine();
+            sb.AppendLine("You can view and manage your reservation by logging into your account.");
+            sb.AppendLine();
+            sb.AppendLine("Thank you for choosing ARS Airlines!");
+            sb.AppendLine();
+            sb.AppendLine("Best regards,");
+            sb.AppendLine("ARS Airlines Team");
+            
+            return sb.ToString();
         }
     }
 }
