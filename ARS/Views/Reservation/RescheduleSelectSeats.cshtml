@@ -1,0 +1,346 @@
+@{
+    ViewData["Title"] = "Select Seats - Reschedule";
+    var reservationId = ViewBag.ReservationID;
+    var flightId = ViewBag.FlightID;
+    var scheduleId = ViewBag.ScheduleID;
+    var newDate = ViewBag.NewDate;
+    var flight = ViewBag.Flight as ARS.Models.Flight;
+    var reservation = ViewBag.Reservation as ARS.Models.Reservation;
+    var passengers = ViewBag.Passengers;
+    var newTotal = ViewBag.NewTotal;
+    var totalPaid = ViewBag.TotalPaid;
+    var difference = ViewBag.Difference;
+    var seatLayoutId = ViewBag.SeatLayoutId;
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Details" asp-route-id="@reservationId">Reservation Details</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Reschedule" asp-route-id="@reservationId">Reschedule</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Select Seats</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-calendar-event"></i> Reschedule Flight - Select Seats</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="bi bi-airplane"></i> New Flight Details</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Flight:</th>
+                                    <td>@flight?.FlightNumber</td>
+                                </tr>
+                                <tr>
+                                    <th>Route:</th>
+                                    <td>@flight?.OriginCity?.CityName → @flight?.DestinationCity?.CityName</td>
+                                </tr>
+                                <tr>
+                                    <th>Date:</th>
+                                    <td>@newDate.ToDateTime(TimeOnly.MinValue).ToString("MMMM dd, yyyy")</td>
+                                </tr>
+                                <tr>
+                                    <th>Departure:</th>
+                                    <td>@flight?.DepartureTime.ToString("hh:mm tt")</td>
+                                </tr>
+                                <tr>
+                                    <th>Arrival:</th>
+                                    <td>@flight?.ArrivalTime.ToString("hh:mm tt")</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="bi bi-cash-stack"></i> Pricing Summary</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Passengers:</th>
+                                    <td>@passengers</td>
+                                </tr>
+                                <tr>
+                                    <th>Original Class:</th>
+                                    <td><span class="badge bg-info">@reservation?.Class</span></td>
+                                </tr>
+                                <tr>
+                                    <th>New Total:</th>
+                                    <td><strong id="new-total">$@newTotal.ToString("N2")</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Already Paid:</th>
+                                    <td id="already-paid">$@totalPaid.ToString("N2")</td>
+                                </tr>
+                                <tr class="@(difference > 0 ? "table-danger" : difference < 0 ? "table-success" : "")">
+                                    <th>@(difference > 0 ? "Additional Due:" : difference < 0 ? "Refund:" : "Difference:")</th>
+                                    <td><strong id="additional-due">$@Math.Abs(difference).ToString("N2")</strong></td>
+                                </tr>
+                            </table>
+                            <div class="alert alert-info small">
+                                <i class="bi bi-info-circle"></i> Selecting seats from different classes will update the price automatically.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Please select <strong>@passengers seat(s)</strong> for your rescheduled flight.
+                    </div>
+
+                    <!-- Seat Map Container -->
+                    <div id="seat-map-container" class="mb-4">
+                        <h5 class="mb-3"><i class="bi bi-grid-3x3"></i> Select Your Seats</h5>
+                        <div id="seat-map-loading" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading seat map...</span>
+                            </div>
+                            <p class="mt-2">Loading available seats...</p>
+                        </div>
+                        <div id="seat-map-content" style="display: none;">
+                            <!-- Seat map will be loaded here via AJAX -->
+                        </div>
+                    </div>
+
+                    <!-- Selected Seats Display -->
+                    <div id="selected-seats-display" class="alert alert-secondary" style="display: none;">
+                        <strong>Selected Seats:</strong> <span id="selected-seats-list"></span>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <div>
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </a>
+                            <form asp-action="CancelReschedule" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="reservationId" value="@reservationId" />
+                                <input type="hidden" name="scheduleId" value="@scheduleId" />
+                                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to cancel this reschedule? Any seat selections will be lost.')">
+                                    <i class="bi bi-x-circle"></i> Cancel Reschedule
+                                </button>
+                            </form>
+                        </div>
+                        <button type="button" id="continue-btn" class="btn btn-primary" disabled>
+                            <i class="bi bi-arrow-right"></i> Continue to Confirmation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const scheduleId = @scheduleId;
+        const requiredSeats = @passengers;
+        const reservationId = @reservationId;
+        const flightId = @flightId;
+        const newDate = '@newDate';
+        const baseFare = @(flight?.BaseFare ?? 0);
+        const originalClass = '@reservation?.Class';
+        const numPassengers = @passengers;
+        
+        let selectedSeats = [];
+        let selectedSeatDetails = [];
+
+        $(document).ready(function() {
+            loadSeatMap();
+
+            $('#continue-btn').click(function() {
+                if (selectedSeats.length === requiredSeats) {
+                    const seatsParam = selectedSeats.join(',');
+                    window.location.href = `@Url.Action("ConfirmReschedule")?reservationId=${reservationId}&flightId=${flightId}&scheduleId=${scheduleId}&newDate=${newDate}&selectedSeats=${seatsParam}`;
+                }
+            });
+        });
+
+        function loadSeatMap() {
+            $.ajax({
+                url: '@Url.Action("GetSeatMap", "Reservation")',
+                data: { 
+                    flightId: flightId,
+                    travelDate: newDate,
+                    scheduleId: scheduleId
+                },
+                success: function(data) {
+                    $('#seat-map-loading').hide();
+                    renderSeatMap(data);
+                    initializeSeatSelection();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Seat map load error:', error);
+                    $('#seat-map-loading').html('<div class="alert alert-danger">Failed to load seat map. Please try again.</div>');
+                }
+            });
+        }
+
+        function renderSeatMap(data) {
+            let html = '<div class="seat-map-grid">';
+            
+            // Add legend
+            html += '<div class="seat-legend mb-3">';
+            html += '<div class="d-flex gap-3 flex-wrap">';
+            html += '<div><span class="seat economy available me-1"></span> Economy Available</div>';
+            html += '<div><span class="seat business available me-1"></span> Business Available</div>';
+            html += '<div><span class="seat first available me-1"></span> First Available</div>';
+            html += '<div><span class="seat reserved me-1"></span> Reserved</div>';
+            html += '<div><span class="seat selected-temp me-1"></span> Selected</div>';
+            html += '</div></div>';
+            
+            // Render rows
+            data.rowsResult.forEach(function(rowData) {
+                html += '<div class="seat-row mb-2">';
+                html += '<span class="row-label me-2">' + rowData.row + '</span>';
+                
+                rowData.seats.forEach(function(seat) {
+                    const classLower = seat.cabin.toLowerCase();
+                    const availableClass = seat.available ? 'available' : 'reserved';
+                    const clickable = seat.available ? 'clickable' : '';
+                    
+                    html += '<div class="seat ' + classLower + ' ' + availableClass + ' ' + clickable + '" ';
+                    html += 'data-seat="' + seat.label + '" ';
+                    html += 'data-class="' + seat.cabin + '" ';
+                    html += 'data-flightseat-id="' + seat.id + '" ';
+                    html += 'title="' + seat.label + ' (' + seat.cabin + ')">';
+                    html += seat.label;
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            
+            // Add CSS for seat map
+            html += '<style>';
+            html += '.seat-map-grid { max-width: 600px; margin: 0 auto; }';
+            html += '.seat-row { display: flex; align-items: center; justify-content: center; }';
+            html += '.row-label { width: 30px; font-weight: bold; color: #666; }';
+            html += '.seat { width: 40px; height: 40px; margin: 2px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #ddd; border-radius: 5px; font-size: 12px; font-weight: bold; user-select: none; }';
+            html += '.seat.economy { background-color: #e3f2fd; border-color: #2196F3; }';
+            html += '.seat.business { background-color: #fff3e0; border-color: #ff9800; }';
+            html += '.seat.first { background-color: #f3e5f5; border-color: #9c27b0; }';
+            html += '.seat.available.clickable { cursor: pointer; }';
+            html += '.seat.available.clickable:hover { opacity: 0.7; transform: scale(1.05); }';
+            html += '.seat.reserved { background-color: #ccc !important; border-color: #999 !important; color: #666; cursor: not-allowed; }';
+            html += '.seat.selected-temp { background-color: #4CAF50 !important; border-color: #2E7D32 !important; color: white; }';
+            html += '.seat-legend { font-size: 14px; }';
+            html += '.seat-legend .seat { width: 30px; height: 30px; margin: 0; display: inline-flex; }';
+            html += '</style>';
+            
+            $('#seat-map-content').html(html).show();
+        }
+
+        function initializeSeatSelection() {
+            $('.seat.available').off('click').on('click', function() {
+                const seatLabel = $(this).data('seat');
+                const seatClass = $(this).data('class') || 'Economy';
+                const seatId = $(this).data('flightseat-id');
+                
+                if ($(this).hasClass('selected-temp')) {
+                    // Deselect
+                    $(this).removeClass('selected-temp');
+                    const index = selectedSeats.indexOf(seatLabel);
+                    if (index > -1) {
+                        selectedSeats.splice(index, 1);
+                        selectedSeatDetails.splice(index, 1);
+                    }
+                } else {
+                    // Select
+                    if (selectedSeats.length < requiredSeats) {
+                        $(this).addClass('selected-temp');
+                        selectedSeats.push(seatLabel);
+                        selectedSeatDetails.push({
+                            label: seatLabel,
+                            class: seatClass,
+                            id: seatId
+                        });
+                    } else {
+                        alert(`You can only select ${requiredSeats} seat(s). Please deselect a seat first.`);
+                        return;
+                    }
+                }
+
+                updateSelectedSeatsDisplay();
+                updatePricing();
+            });
+        }
+
+        function updateSelectedSeatsDisplay() {
+            if (selectedSeats.length > 0) {
+                let displayText = selectedSeats.map((seat, idx) => {
+                    const detail = selectedSeatDetails[idx];
+                    return `${seat} (${detail.class})`;
+                }).join(', ');
+                $('#selected-seats-list').html(displayText);
+                $('#selected-seats-display').show();
+            } else {
+                $('#selected-seats-display').hide();
+            }
+
+            // Enable/disable continue button
+            if (selectedSeats.length === requiredSeats) {
+                $('#continue-btn').prop('disabled', false);
+            } else {
+                $('#continue-btn').prop('disabled', true);
+            }
+        }
+
+        function updatePricing() {
+            // Calculate new price based on selected seat classes
+            let totalPrice = 0;
+            const daysBeforeDeparture = Math.floor((new Date(newDate) - new Date()) / (1000 * 60 * 60 * 24));
+            
+            const timingMultiplier = daysBeforeDeparture >= 30 ? 0.80 :
+                                   daysBeforeDeparture >= 15 ? 1.00 :
+                                   daysBeforeDeparture >= 7 ? 1.20 : 1.50;
+
+            selectedSeatDetails.forEach(seat => {
+                const classMultiplier = seat.class === 'Business' ? 2.0 :
+                                      seat.class === 'First' ? 3.5 : 1.0;
+                totalPrice += baseFare * classMultiplier * timingMultiplier;
+            });
+
+            // If not all seats selected, estimate remaining with original class
+            const remainingSeats = numPassengers - selectedSeats.length;
+            if (remainingSeats > 0) {
+                const originalClassMultiplier = originalClass === 'Business' ? 2.0 :
+                                               originalClass === 'First' ? 3.5 : 1.0;
+                totalPrice += (baseFare * originalClassMultiplier * timingMultiplier * remainingSeats);
+            }
+
+            // Update display
+            const alreadyPaid = parseFloat($('#already-paid').text().replace(/[$,]/g, '')) || 0;
+            const difference = totalPrice - alreadyPaid;
+
+            $('#new-total').text('$' + totalPrice.toFixed(2));
+            $('#additional-due').text('$' + Math.abs(difference).toFixed(2));
+            
+            const dueLabelRow = $('#additional-due').closest('tr');
+            dueLabelRow.removeClass('table-danger table-success');
+            
+            if (difference > 0) {
+                dueLabelRow.addClass('table-danger');
+                dueLabelRow.find('th').text('Additional Due:');
+            } else if (difference < 0) {
+                dueLabelRow.addClass('table-success');
+                dueLabelRow.find('th').text('Refund:');
+            } else {
+                dueLabelRow.find('th').text('Difference:');
+            }
+        }
+    </script>
+
+    <style>
+        .seat.selected-temp {
+            background-color: #0d6efd !important;
+            color: white !important;
+            border-color: #0d6efd !important;
+        }
+    </style>
+}

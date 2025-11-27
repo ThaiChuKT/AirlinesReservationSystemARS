@@ -16,5 +16,8 @@ namespace ARS.ViewModels
         public int Passengers { get; set; }
         public string Class { get; set; } = "Economy";
         public List<ARS.ViewModels.FlightResultItem> Flights { get; set; } = new List<ARS.ViewModels.FlightResultItem>();
+        public int CurrentPage { get; set; } = 1;
+        public int TotalPages { get; set; } = 1;
+        public int PageSize { get; set; } = 5;
     }
 }

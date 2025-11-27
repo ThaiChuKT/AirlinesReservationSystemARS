@@ -818,7 +818,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
         // POST: Reservation/RescheduleSearch/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RescheduleSearch(int id, DateOnly newDate)
+        public async Task<IActionResult> RescheduleSearch(int id, DateOnly newDate, int page = 1)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null)
@@ -905,20 +905,101 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 });
             }
 
+            // Pagination
+            const int pageSize = 5;
+            var totalFlights = results.Count;
+            var totalPages = (int)Math.Ceiling(totalFlights / (double)pageSize);
+            page = Math.Max(1, Math.Min(page, totalPages > 0 ? totalPages : 1));
+            
+            var pagedResults = results
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             var vm = new ARS.ViewModels.RescheduleSearchResultViewModel
             {
                 Reservation = reservation,
                 NewDate = newDate,
                 Passengers = passengers,
                 Class = reservation.Class,
-                Flights = results
+                Flights = pagedResults,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                PageSize = pageSize
             };
 
             return View("RescheduleResults", vm);
         }
 
-        // GET: Reservation/ConfirmReschedule?reservationId=1&flightId=2&scheduleId=3&newDate=2025-11-16
-        public async Task<IActionResult> ConfirmReschedule(int reservationId, int flightId, int scheduleId, DateOnly newDate)
+        // GET: Reservation/RescheduleSelectSeats?reservationId=1&flightId=2&scheduleId=3&newDate=2025-11-16
+        public async Task<IActionResult> RescheduleSelectSeats(int reservationId, int flightId, int scheduleId, DateOnly newDate)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null) return RedirectToAction("Login", "Account");
+
+            var reservation = await _context.Reservations
+                .Include(r => r.Payments)
+                .Include(r => r.Flight)
+                    .ThenInclude(f => f.OriginCity)
+                .Include(r => r.Flight)
+                    .ThenInclude(f => f.DestinationCity)
+                .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
+
+            if (reservation == null) return NotFound();
+            
+            // Allow access if user owns reservation OR user is admin
+            var isAdmin = User.IsInRole("Admin");
+            if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
+
+            var flight = await _context.Flights
+                .Include(f => f.OriginCity)
+                .Include(f => f.DestinationCity)
+                .Include(f => f.SeatLayout)
+                .FirstOrDefaultAsync(f => f.FlightID == flightId);
+            
+            if (flight == null) return NotFound();
+
+            // Ensure FlightSeats are generated for this schedule
+            await _seatService.GenerateFlightSeatsAsync(scheduleId);
+
+            // compute new total price
+            var passengers = reservation.NumAdults + reservation.NumChildren + reservation.NumSeniors;
+            var daysBefore = (newDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+            var timingMultiplier = daysBefore switch
+            {
+                >= 30 => 0.80m,
+                >= 15 => 1.00m,
+                >= 7 => 1.20m,
+                _ => 1.50m
+            };
+            var classMultiplier = reservation.Class switch
+            {
+                "Business" => 2.0m,
+                "First" => 3.5m,
+                _ => 1.0m
+            };
+            var newTotal = Math.Round(flight.BaseFare * classMultiplier * timingMultiplier * passengers, 2);
+
+            var totalPaid = (reservation.Payments ?? Enumerable.Empty<Payment>()).Where(p => p.TransactionStatus == "Completed").Sum(p => p.Amount);
+            var difference = Math.Round(newTotal - totalPaid, 2);
+
+            ViewBag.ReservationID = reservationId;
+            ViewBag.FlightID = flightId;
+            ViewBag.ScheduleID = scheduleId;
+            ViewBag.NewDate = newDate;
+            ViewBag.Flight = flight;
+            ViewBag.Reservation = reservation;
+            ViewBag.Passengers = passengers;
+            ViewBag.NewTotal = newTotal;
+            ViewBag.TotalPaid = totalPaid;
+            ViewBag.Difference = difference;
+            ViewBag.SeatLayoutId = flight.SeatLayoutId;
+
+            return View();
+        }
+
+        // GET: Reservation/ConfirmReschedule?reservationId=1&flightId=2&scheduleId=3&newDate=2025-11-16&selectedSeats=1A,1B
+        public async Task<IActionResult> ConfirmReschedule(int reservationId, int flightId, int scheduleId, DateOnly newDate, string? selectedSeats = null)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null) return RedirectToAction("Login", "Account");
@@ -934,7 +1015,11 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
             var isAdmin = User.IsInRole("Admin");
             if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
 
-            var flight = await _context.Flights.FindAsync(flightId);
+            var flight = await _context.Flights
+                .Include(f => f.OriginCity)
+                .Include(f => f.DestinationCity)
+                .FirstOrDefaultAsync(f => f.FlightID == flightId);
+            
             if (flight == null) return NotFound();
 
             // compute new total price
@@ -966,7 +1051,8 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 NewDate = newDate,
                 NewTotal = newTotal,
                 TotalPaid = totalPaid,
-                Difference = difference
+                Difference = difference,
+                SelectedSeats = selectedSeats ?? ""
             };
 
             return View(vm);
@@ -975,50 +1061,186 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
         // POST: Reservation/ConfirmReschedule
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ConfirmReschedulePost(int reservationId, int flightId, int scheduleId, DateOnly newDate)
+        public async Task<IActionResult> ConfirmReschedulePost(int reservationId, int flightId, int scheduleId, DateOnly newDate, string? selectedSeats = null)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null) return RedirectToAction("Login", "Account");
 
-            var reservation = await _context.Reservations
+            var oldReservation = await _context.Reservations
                 .Include(r => r.Payments)
+                .Include(r => r.FlightSeat)
                 .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
 
-            if (reservation == null) return NotFound();
+            if (oldReservation == null) return NotFound();
             
             // Allow access if user owns reservation OR user is admin
             var isAdmin = User.IsInRole("Admin");
-            if (reservation.UserID != currentUser.Id && !isAdmin) return Forbid();
+            if (oldReservation.UserID != currentUser.Id && !isAdmin) return Forbid();
 
             var flight = await _context.Flights.FindAsync(flightId);
             if (flight == null) return NotFound();
 
-            var passengers = reservation.NumAdults + reservation.NumChildren + reservation.NumSeniors;
-            var daysBefore = (newDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
-            var timingMultiplier = daysBefore switch
-            {
-                >= 30 => 0.80m,
-                >= 15 => 1.00m,
-                >= 7 => 1.20m,
-                _ => 1.50m
-            };
-            var classMultiplier = reservation.Class switch
-            {
-                "Business" => 2.0m,
-                "First" => 3.5m,
-                _ => 1.0m
-            };
-            var newTotal = Math.Round(flight.BaseFare * classMultiplier * timingMultiplier * passengers, 2);
+            // Cancel old reservation seats - make them available for others
+            await _seatService.CancelReservationSeatAsync(reservationId);
 
-            var totalPaid = (reservation.Payments ?? Enumerable.Empty<Payment>()).Where(p => p.TransactionStatus == "Completed").Sum(p => p.Amount);
+            var passengers = oldReservation.NumAdults + oldReservation.NumChildren + oldReservation.NumSeniors;
+            
+            // Calculate total paid from old reservation
+            var totalPaid = (oldReservation.Payments ?? Enumerable.Empty<Payment>())
+                .Where(p => p.TransactionStatus == "Completed")
+                .Sum(p => p.Amount);
+
+            // Create new reservation
+            var newReservation = new Reservation
+            {
+                UserID = oldReservation.UserID,
+                FlightID = flightId,
+                ScheduleID = scheduleId,
+                TravelDate = newDate,
+                NumAdults = oldReservation.NumAdults,
+                NumChildren = oldReservation.NumChildren,
+                NumSeniors = oldReservation.NumSeniors,
+                Class = oldReservation.Class,
+                BookingDate = DateOnly.FromDateTime(DateTime.Now),
+                ConfirmationNumber = GenerateConfirmationNumber(),
+                BlockingNumber = GenerateBlockingNumber(),
+                Status = "Confirmed"
+            };
+
+            _context.Reservations.Add(newReservation);
+            await _context.SaveChangesAsync(); // Save to get the new ReservationID
+            
+            // Reserve new seats if selected
+            var newSeatLabels = new List<string>();
+            decimal newTotal = 0;
+            
+            if (!string.IsNullOrEmpty(selectedSeats))
+            {
+                var seatLabelArray = selectedSeats.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                
+                if (seatLabelArray.Length != passengers)
+                {
+                    _context.Reservations.Remove(newReservation);
+                    await _context.SaveChangesAsync();
+                    TempData["ErrorMessage"] = $"Please select exactly {passengers} seat(s).";
+                    return RedirectToAction("RescheduleSelectSeats", new { reservationId, flightId, scheduleId, newDate });
+                }
+
+                // Get all available seats for this schedule
+                var availableSeats = await _seatService.GetAvailableSeatsAsync(scheduleId);
+                
+                // Reserve each selected seat and calculate price based on seat classes
+                decimal seatClassBasedPrice = 0;
+                foreach (var label in seatLabelArray)
+                {
+                    var seatToReserve = availableSeats.FirstOrDefault(s => s.Label == label.Trim());
+                    if (seatToReserve == null || !seatToReserve.IsAvailable)
+                    {
+                        _context.Reservations.Remove(newReservation);
+                        await _context.SaveChangesAsync();
+                        TempData["ErrorMessage"] = $"Seat {label} is no longer available.";
+                        return RedirectToAction("RescheduleSelectSeats", new { reservationId, flightId, scheduleId, newDate });
+                    }
+
+                    var reserveResult = await _seatService.ReserveSeatAsync(seatToReserve.FlightSeatId, newReservation.ReservationID);
+                    if (!reserveResult)
+                    {
+                        _context.Reservations.Remove(newReservation);
+                        await _context.SaveChangesAsync();
+                        TempData["ErrorMessage"] = $"Failed to reserve seat {label}.";
+                        return RedirectToAction("RescheduleSelectSeats", new { reservationId, flightId, scheduleId, newDate });
+                    }
+                    
+                    // Calculate price for this seat based on its class
+                    var daysBefore = (newDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                    var timingMultiplier = daysBefore switch
+                    {
+                        >= 30 => 0.80m,
+                        >= 15 => 1.00m,
+                        >= 7 => 1.20m,
+                        _ => 1.50m
+                    };
+                    
+                    var seatClassMultiplier = seatToReserve.CabinClass switch
+                    {
+                        CabinClass.Business => 2.0m,
+                        CabinClass.First => 3.5m,
+                        _ => 1.0m
+                    };
+                    
+                    seatClassBasedPrice += flight.BaseFare * seatClassMultiplier * timingMultiplier;
+                    newSeatLabels.Add(label.Trim());
+                }
+
+                // Link first seat to reservation
+                if (newSeatLabels.Any())
+                {
+                    var firstSeatInfo = availableSeats.FirstOrDefault(s => s.Label == newSeatLabels[0]);
+                    if (firstSeatInfo != null)
+                    {
+                        newReservation.FlightSeatId = firstSeatInfo.FlightSeatId;
+                        newReservation.SeatLabel = string.Join(", ", newSeatLabels);
+                        
+                        // Update reservation class based on highest class selected
+                        var highestClass = availableSeats
+                            .Where(s => newSeatLabels.Contains(s.Label))
+                            .Max(s => s.CabinClass);
+                        
+                        newReservation.Class = highestClass switch
+                        {
+                            CabinClass.First => "First",
+                            CabinClass.Business => "Business",
+                            _ => "Economy"
+                        };
+                    }
+                }
+                
+                // Use seat-based pricing
+                newTotal = Math.Round(seatClassBasedPrice, 2);
+            }
+            else
+            {
+                // No seats selected, use original class pricing
+                var daysBefore = (newDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                var timingMultiplier = daysBefore switch
+                {
+                    >= 30 => 0.80m,
+                    >= 15 => 1.00m,
+                    >= 7 => 1.20m,
+                    _ => 1.50m
+                };
+                var classMultiplier = newReservation.Class switch
+                {
+                    "Business" => 2.0m,
+                    "First" => 3.5m,
+                    _ => 1.0m
+                };
+                newTotal = Math.Round(flight.BaseFare * classMultiplier * timingMultiplier * passengers, 2);
+            }
+
             var difference = Math.Round(newTotal - totalPaid, 2);
+
+            // Transfer the old payments to new reservation as "Applied from previous booking"
+            if (totalPaid > 0)
+            {
+                var transferPayment = new Payment
+                {
+                    ReservationID = newReservation.ReservationID,
+                    Amount = totalPaid,
+                    PaymentDate = DateTime.Now,
+                    PaymentMethod = "TransferFromReschedule",
+                    TransactionStatus = "Completed",
+                    TransactionRefNo = $"TRANSFER-{oldReservation.ConfirmationNumber}"
+                };
+                _context.Payments.Add(transferPayment);
+            }
 
             // If difference > 0, create a pending payment record for the balance due
             if (difference > 0)
             {
                 var payment = new Payment
                 {
-                    ReservationID = reservation.ReservationID,
+                    ReservationID = newReservation.ReservationID,
                     Amount = difference,
                     PaymentDate = DateTime.Now,
                     PaymentMethod = "RescheduleDue",
@@ -1026,6 +1248,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                     TransactionRefNo = null
                 };
                 _context.Payments.Add(payment);
+                newReservation.Status = "Pending"; // Set to Pending if payment is due
             }
             else if (difference < 0)
             {
@@ -1034,35 +1257,77 @@ WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `UserID` = {user.Id});
                 var refundPercent = totalPaid > 0 ? Math.Round((refundAmount / totalPaid) * 100m, 2) : 0m;
                 var refund = new Refund
                 {
-                    ReservationID = reservation.ReservationID,
+                    ReservationID = newReservation.ReservationID,
                     RefundAmount = refundAmount,
                     RefundDate = DateTime.Now,
                     RefundPercentage = refundPercent
                 };
                 _context.Refunds.Add(refund);
-
-                // Mark completed payments as refunded (simple approach)
-                foreach (var p in (reservation.Payments ?? Enumerable.Empty<Payment>()).Where(p => p.TransactionStatus == "Completed"))
-                {
-                    p.TransactionStatus = "Refunded";
-                }
             }
 
-            // Update reservation to the new flight/date/schedule
-            reservation.FlightID = flightId;
-            reservation.ScheduleID = scheduleId;
-            reservation.TravelDate = newDate;
-            reservation.ConfirmationNumber = GenerateConfirmationNumber();
-            reservation.Status = "Rescheduled";
+            // Cancel the old reservation
+            oldReservation.Status = "Cancelled";
 
             await _context.SaveChangesAsync();
 
+            var seatInfo = newSeatLabels.Any() ? $" Seats: {string.Join(", ", newSeatLabels)}." : "";
             TempData["SuccessMessage"] = difference > 0
-                ? $"Reservation updated. An additional payment of ${difference:N2} is required to complete the reschedule."
+                ? $"Reservation rescheduled successfully. New confirmation: {newReservation.ConfirmationNumber}.{seatInfo} An additional payment of ${difference:N2} is required."
                 : difference < 0
-                    ? $"Reservation updated. A refund of ${Math.Abs(difference):N2} will be processed."
-                    : "Reservation updated. No price difference.";
+                    ? $"Reservation rescheduled successfully. New confirmation: {newReservation.ConfirmationNumber}.{seatInfo} A refund of ${Math.Abs(difference):N2} will be processed."
+                    : $"Reservation rescheduled successfully. New confirmation: {newReservation.ConfirmationNumber}.{seatInfo}";
 
+            return RedirectToAction("Details", new { id = newReservation.ReservationID });
+        }
+
+        // POST: Reservation/CancelReschedule
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelReschedule(int reservationId, int? scheduleId)
+        {
+            var reservation = await _context.Reservations
+                .Include(r => r.Payments)
+                .FirstOrDefaultAsync(r => r.ReservationID == reservationId);
+
+            if (reservation == null)
+            {
+                return NotFound();
+            }
+
+            // If reservation is in "Rescheduled" status, we need to revert it
+            if (reservation.Status == "Rescheduled")
+            {
+                // Remove the pending reschedule payment
+                var reschedulePendingPayment = reservation.Payments?
+                    .FirstOrDefault(p => p.PaymentMethod == "RescheduleDue" && p.TransactionStatus == "Pending");
+                
+                if (reschedulePendingPayment != null)
+                {
+                    _context.Payments.Remove(reschedulePendingPayment);
+                }
+
+                // Release the newly reserved seats
+                await _seatService.CancelReservationSeatAsync(reservationId);
+
+                // Note: We cannot easily revert to the original flight/schedule/date without storing that data
+                // For now, we'll just change the status back to Confirmed
+                reservation.Status = "Confirmed";
+                
+                await _context.SaveChangesAsync();
+                
+                TempData["SuccessMessage"] = "Reschedule has been cancelled. The pending payment has been removed. Please contact support if you need to revert to your original flight details.";
+            }
+            else
+            {
+                // Release any reserved seats for this reschedule attempt (in-progress reschedule)
+                if (scheduleId.HasValue)
+                {
+                    await _seatService.CancelReservationSeatAsync(reservationId);
+                }
+
+                TempData["InfoMessage"] = "Reschedule cancelled. No changes were made to your reservation.";
+            }
+            
             return RedirectToAction("Details", new { id = reservationId });
         }
 

@@ -11,5 +11,6 @@ namespace ARS.ViewModels
         public decimal NewTotal { get; set; }
         public decimal TotalPaid { get; set; }
         public decimal Difference { get; set; }
+        public string SelectedSeats { get; set; } = string.Empty;
     }
 }
