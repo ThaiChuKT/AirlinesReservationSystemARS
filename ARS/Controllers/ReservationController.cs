@@ -245,6 +245,50 @@ namespace ARS.Controllers
                     _context.Reservations.Add(parentReservation);
                     await _context.SaveChangesAsync();
 
+                    // Calculate total price for multi-leg journey and create initial payment
+                    decimal totalMultiLegPrice = 0;
+                    var passengers = model.NumAdults + model.NumChildren + model.NumSeniors;
+                    
+                    foreach (var leg in orderedLegs)
+                    {
+                        var flight = await _context.Flights.FindAsync(leg.FlightID);
+                        if (flight != null)
+                        {
+                            var daysBefore = (leg.TravelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                            var timingMultiplier = daysBefore switch
+                            {
+                                >= 30 => 0.80m,
+                                >= 15 => 1.00m,
+                                >= 7 => 1.20m,
+                                _ => 1.50m
+                            };
+                            
+                            var classMultiplier = model.Class switch
+                            {
+                                "Business" => 2.0m,
+                                "First" => 3.5m,
+                                _ => 1.0m
+                            };
+                            
+                            totalMultiLegPrice += flight.BaseFare * classMultiplier * timingMultiplier * passengers;
+                        }
+                    }
+                    
+                    if (totalMultiLegPrice > 0)
+                    {
+                        var initialPayment = new Payment
+                        {
+                            ReservationID = parentReservation.ReservationID,
+                            Amount = Math.Round(totalMultiLegPrice, 2),
+                            PaymentDate = DateTime.Now,
+                            PaymentMethod = "Pending",
+                            TransactionStatus = "Pending",
+                            TransactionRefNo = null
+                        };
+                        _context.Payments.Add(initialPayment);
+                        await _context.SaveChangesAsync();
+                    }
+
                     var legsToAdd = new List<ReservationLeg>();
 
                     foreach (var leg in orderedLegs)
@@ -444,6 +488,48 @@ namespace ARS.Controllers
                 }
 
                 _context.Reservations.AddRange(reservationsToAdd);
+
+                // Create initial pending payments for all reservations
+                foreach (var reservation in reservationsToAdd)
+                {
+                    // Calculate the total price for this reservation
+                    var flight = await _context.Flights.FindAsync(reservation.FlightID);
+                    if (flight != null)
+                    {
+                        var passengers = reservation.NumAdults + reservation.NumChildren + reservation.NumSeniors;
+                        var travelDate = reservation.TravelDate;
+                        var daysBefore = (travelDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                        
+                        var timingMultiplier = daysBefore switch
+                        {
+                            >= 30 => 0.80m,
+                            >= 15 => 1.00m,
+                            >= 7 => 1.20m,
+                            _ => 1.50m
+                        };
+                        
+                        var classMultiplier = reservation.Class switch
+                        {
+                            "Business" => 2.0m,
+                            "First" => 3.5m,
+                            _ => 1.0m
+                        };
+                        
+                        var totalPrice = Math.Round(flight.BaseFare * classMultiplier * timingMultiplier * passengers, 2);
+                        
+                        var initialPayment = new Payment
+                        {
+                            ReservationID = reservation.ReservationID,
+                            Amount = totalPrice,
+                            PaymentDate = DateTime.Now,
+                            PaymentMethod = "Pending",
+                            TransactionStatus = "Pending",
+                            TransactionRefNo = null
+                        };
+                        
+                        reservation.Payments = new List<Payment> { initialPayment };
+                    }
+                }
 
                 // Ensure a legacy Users row exists for compatibility with existing FK in the database.
                 try
